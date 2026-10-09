@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { ArrowRight, Mail, Check } from "lucide-react";
 
 export default function Contact() {
@@ -34,7 +35,10 @@ export default function Contact() {
               Whether you have a question, an idea, or something that could make Momentum better — we actually read everything.
             </p>
           </div>
-          <div className="pb-2">
+          <div className="pb-2 space-y-6">
+            <div className="relative aspect-[4/3] overflow-hidden rounded-3xl bg-[var(--white)]">
+              <Image src="/images/contact-hero.jpg" alt="Contact Momentum" fill className="object-cover" priority />
+            </div>
             <div className="inline-flex items-center gap-3 rounded-full border border-[var(--ink)]/10 bg-[var(--white)] px-4 py-2">
               <div className="h-8 w-8 rounded-full bg-[var(--mint)] grid place-items-center">
                 <Mail size={14} />
@@ -50,19 +54,27 @@ export default function Contact() {
 
       <div className="border-y border-[var(--ink)]/10 bg-[var(--white)]">
         <div className="mx-auto max-w-6xl px-6 py-16 md:py-24 grid lg:grid-cols-[320px_1fr] gap-12">
-          <div className="lg:sticky lg:top-24 h-fit">
-            <h2 className="text-3xl md:text-4xl leading-tight tracking-tight" style={{ fontFamily: "var(--heading-font)" }}>
-              Tell us what's<br />on your mind.
-            </h2>
-            <p className="mt-4 text-sm leading-6 text-[var(--muted)] max-w-[280px]">
-              Questions, feedback, bugs, or just saying hello — everything is welcome. We don't do auto-replies.
-            </p>
+          <div className="lg:sticky lg:top-24 h-fit space-y-6">
+            <div>
+              <h2 className="text-3xl md:text-4xl leading-tight tracking-tight" style={{ fontFamily: "var(--heading-font)" }}>
+                Tell us what's<br />on your mind.
+              </h2>
+              <p className="mt-4 text-sm leading-6 text-[var(--muted)] max-w-[280px]">
+                Questions, feedback, bugs, or just saying hello — everything is welcome. We don't do auto-replies.
+              </p>
+            </div>
+            <div className="relative aspect-[3/4] overflow-hidden rounded-3xl">
+              <Image src="/images/contact-side.jpg" alt="We are listening" fill className="object-cover" />
+            </div>
           </div>
 
           <div>
             {status === "sent"? (
-              <div className="rounded-3xl border border-dashed border-[var(--ink)]/15 bg-[var(--cream)] px-8 py-16 text-center">
-                <div className="mx-auto h-12 w-12 rounded-full bg-[var(--ink)] text-[var(--white)] grid place-items-center">
+              <div className="rounded-3xl border border-dashed border-[var(--ink)]/15 bg-[var(--cream)] px-8 py-10 text-center">
+                <div className="relative mx-auto h-48 w-full max-w-sm overflow-hidden rounded-2xl">
+                  <Image src="/images/contact-success.jpg" alt="Message sent" fill className="object-cover" />
+                </div>
+                <div className="mx-auto mt-8 h-12 w-12 rounded-full bg-[var(--ink)] text-[var(--white)] grid place-items-center">
                   <Check size={20} />
                 </div>
                 <h3 className="mt-6 text-3xl tracking-tight" style={{ fontFamily: "var(--heading-font)" }}>
@@ -87,17 +99,14 @@ export default function Contact() {
                     <input required type="email" placeholder="Your email" className="mt-3 w-full border-b border-[var(--ink)]/15 bg-transparent py-3 text-sm outline-none placeholder:text-[var(--muted)]/40 focus:border-[var(--ink)]" />
                   </div>
                 </div>
-
                 <div>
                   <label className="text-xs uppercase tracking-widest text-[var(--muted)]">Subject</label>
                   <input required placeholder="What is this about?" className="mt-3 w-full border-b border-[var(--ink)]/15 bg-transparent py-3 text-sm outline-none placeholder:text-[var(--muted)]/40 focus:border-[var(--ink)]" />
                 </div>
-
                 <div>
                   <label className="text-xs uppercase tracking-widest text-[var(--muted)]">Message</label>
                   <textarea required rows={5} placeholder="Tell us what you're thinking..." className="mt-3 w-full resize-none border-b border-[var(--ink)]/15 bg-transparent py-3 text-sm leading-6 outline-none placeholder:text-[var(--muted)]/40 focus:border-[var(--ink)]" />
                 </div>
-
                 <div className="flex items-center justify-between pt-2">
                   <p className="hidden sm:block text-xs text-[var(--muted)]">We never share your email.</p>
                   <button disabled={status === "sending"} className="ml-auto inline-flex items-center gap-2 rounded-full bg-[var(--deep-blue)] px-7 py-3.5 text-sm font-medium text-[var(--white)] hover:bg-[var(--ink)] disabled:opacity-60">

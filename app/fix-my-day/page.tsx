@@ -49,11 +49,7 @@ export default function FixMyDayPage() {
         <div className="flex h-16 items-center justify-between border-b border-[var(--ink)]/10">
           <Link href="/" className="text-xs uppercase tracking-widest font-medium">Momentum</Link>
           <div className="flex items-center gap-3">
-            <div className="hidden md:flex gap-1.5">
-              {[0,1,2,3,4].map(i => (
-                <div key={i} className={`h-1 w-6 rounded-full transition-all ${i <= step? "bg-[var(--ink)]" : "bg-[var(--ink)]/10"}`} />
-              ))}
-            </div>
+            
             <button onClick={() => { setView("home"); setFeel(""); setBlock(""); }} className="ml-4 text-xs uppercase tracking-widest text-[var(--muted)]">
               {view!== "home"? "reset" : "Fix My Day"}
             </button>
@@ -219,6 +215,7 @@ export default function FixMyDayPage() {
               </div>
               {later.length > 0 && (
                 <div className="mt-12">
+         
                   <p className="text-xs uppercase tracking-widest text-[var(--muted)]">Not now — {later.length}</p>
                   <div className="mt-4 text-sm text-[var(--muted)]">
                     {later.map(t => <div key={t.id} className="flex justify-between py-2 border-b border-[var(--ink)]/5"><span>{t.text}</span><span className="text-xs">{t.mins}m</span></div>)}

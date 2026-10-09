@@ -145,19 +145,17 @@ export default function Home() {
         <div className="rounded-3xl bg-[var(--teal)] p-8 md:p-14 grid md:grid-cols-12 gap-8 items-center overflow-hidden relative">
           <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full border-[32px] border-[var(--mint)]/30 pointer-events-none" />
           <div className="md:col-span-7 relative">
-            <h2 className="text-4xl md:text-5xl leading-none tracking-tight text-[var(--white)]" style={{ fontFamily: "var(--heading-font)" }}>
+            <h2 className="text-5xl md:text-6xl leading-none tracking-tight text-[var(--white)]" style={{ fontFamily: "var(--heading-font)" }}>
               Let's make today feel a little lighter.
             </h2>
-            <div className="mt-8 flex items-center gap-4">
+            <div className="mt-8 flex items-center justify-center gap-4">
               <Link href="/fix-my-day" className="inline-flex items-center gap-2 rounded-full bg-[var(--ink)] px-7 py-3.5 text-sm text-[var(--white)]">
                 Fix My Day <ArrowRight size={16} />
               </Link>
               <span className="text-sm text-[var(--ink)]/70">Takes a moment to begin</span>
             </div>
           </div>
-          <div className="md:col-span-5 relative aspect-[4/3] overflow-hidden rounded-2xl bg-[var(--white)]/10">
-            <Image src="/images/cta-lighter.jpg" alt="Lighter day" fill className="object-cover" />
-          </div>
+          
         </div>
 
         <div className="mt-16 flex justify-between items-center border-t border-[var(--ink)]/10 pt-10">
