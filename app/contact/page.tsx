@@ -45,7 +45,7 @@ export default function Contact() {
               </div>
               <div>
                 <p className="text-xs uppercase tracking-widest text-[var(--muted)]">Email us directly</p>
-                <a href="mailto:hello@momentum.com" className="text-sm">hello@momentum.com</a>
+                <a href="mailto:momentum@gmail.com" className="text-sm">hello@momentum.com</a>
               </div>
             </div>
           </div>
