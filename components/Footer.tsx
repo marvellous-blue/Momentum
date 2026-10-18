@@ -1,9 +1,10 @@
-import { headers } from "next/headers";
-import Link from "next/link";
+"use client";
 
-export default async function Footer() {
-  const headerList = await headers();
-  const pathname = headerList.get("x-next-url") ?? headerList.get("x-invoke-path") ?? "";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+
+export default function Footer() {
+  const pathname = usePathname();
 
   if (pathname === "/dashboard" || pathname.startsWith("/dashboard/")) {
     return null;
