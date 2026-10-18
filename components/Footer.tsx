@@ -1,6 +1,14 @@
+import { headers } from "next/headers";
 import Link from "next/link";
 
-export default function Footer() {
+export default async function Footer() {
+  const headerList = await headers();
+  const pathname = headerList.get("x-next-url") ?? headerList.get("x-invoke-path") ?? "";
+
+  if (pathname === "/dashboard" || pathname.startsWith("/dashboard/")) {
+    return null;
+  }
+
   return (
     <footer className="bg-[var(--deep-blue)] px-5 py-10 text-white md:px-10 lg:px-16">
       <div className="mx-auto flex max-w-7xl flex-col gap-8 md:flex-row md:items-end md:justify-between">
@@ -17,6 +25,9 @@ export default function Footer() {
         </div>
 
         <div className="flex gap-6 text-sm text-white/80">
+          <Link href="/dashboard" className="transition-opacity hover:opacity-60">
+            Dashboard
+          </Link>
           <Link href="/about" className="transition-opacity hover:opacity-60">
             About
           </Link>
