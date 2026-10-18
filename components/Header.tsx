@@ -3,10 +3,16 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Menu, X, ArrowUpRight } from "lucide-react";
 
 export default function Header() {
   const [isOpen, setIsOpen] = useState(false);
+  const pathname = usePathname();
+
+  if (pathname === "/dashboard" || pathname.startsWith("/dashboard/")) {
+    return null;
+  }
 
   return (
     <header className="relative z-50 px-5 py-5 md:px-10 lg:px-16">
@@ -24,6 +30,13 @@ export default function Header() {
           </Link>
 
           <nav className="hidden items-center gap-8 md:flex">
+            <Link
+              href="/dashboard"
+              className="text-sm font-medium text-[var(--ink)] transition-colors hover:text-[var(--teal)]"
+            >
+              Dashboard
+            </Link>
+
             <Link
               href="/fix-my-day"
               className="text-sm font-medium text-[var(--ink)] transition-colors hover:text-[var(--teal)]"
@@ -53,10 +66,10 @@ export default function Header() {
             </Link>
 
             <Link
-              href="/fix-my-day"
+              href="/dashboard"
               className="flex items-center gap-2 rounded-full bg-[var(--deep-blue)] px-5 py-3 text-sm font-medium text-white transition-transform hover:-translate-y-0.5"
             >
-              Start
+              Open Dashboard
               <ArrowUpRight size={16} />
             </Link>
           </nav>
@@ -65,6 +78,7 @@ export default function Header() {
             type="button"
             onClick={() => setIsOpen(!isOpen)}
             aria-label={isOpen ? "Close menu" : "Open menu"}
+            aria-expanded={isOpen}
             className="relative z-50 flex h-11 w-11 items-center justify-center rounded-full border border-[var(--deep-blue)]/15 bg-white/60 text-[var(--deep-blue)] md:hidden"
           >
             {isOpen ? <X size={21} /> : <Menu size={21} />}
@@ -75,6 +89,15 @@ export default function Header() {
           <div className="fixed inset-0 -z-10 bg-[var(--cream)] px-5 pt-28 md:hidden">
             <div className="flex min-h-full flex-col justify-between pb-10">
               <nav className="flex flex-col">
+                <Link
+                  href="/dashboard"
+                  onClick={() => setIsOpen(false)}
+                  className="border-b border-[var(--deep-blue)]/10 py-6 text-4xl text-[var(--deep-blue)]"
+                  style={{ fontFamily: "var(--heading-font)" }}
+                >
+                  Dashboard
+                </Link>
+
                 <Link
                   href="/fix-my-day"
                   onClick={() => setIsOpen(false)}
@@ -118,11 +141,11 @@ export default function Header() {
                 </p>
 
                 <Link
-                  href="/fix-my-day"
+                  href="/dashboard"
                   onClick={() => setIsOpen(false)}
                   className="flex items-center justify-between rounded-full bg-[var(--deep-blue)] px-6 py-4 text-sm font-medium text-white"
                 >
-                  Start with Fix My Day
+                  Open Dashboard
                   <ArrowUpRight size={18} />
                 </Link>
               </div>
