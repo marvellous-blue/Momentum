@@ -88,6 +88,34 @@ export default function DashboardPage() {
   const [timerRunning, setTimerRunning] = useState(false);
   const [timerFinished, setTimerFinished] = useState(false);
   const [notice, setNotice] = useState("");
+  const [notificationPermission, setNotificationPermission] = useState("default");
+  const notifiedReminderIds = useRef(new Set<string>());
+
+  useEffect(() => {
+    if ("Notification" in window) {
+      setNotificationPermission(Notification.permission);
+    }
+  }, []);
+
+  async function enableNotifications() {
+    if (!("Notification" in window)) {
+      setNotice("This browser does not support system notifications.");
+      return;
+    }
+
+    const permission = await Notification.requestPermission();
+    setNotificationPermission(permission);
+
+    if (permission === "granted") {
+      setNotice("System notifications are enabled.");
+      new Notification("Momentum", {
+        body: "Notifications are ready for reminders while Momentum is running.",
+        icon: "/images/momentum-logo.png",
+      });
+    } else {
+      setNotice("Notifications were not enabled. You can change this in browser settings.");
+    }
+  }
 
   useEffect(() => {
     try {
@@ -123,11 +151,45 @@ export default function DashboardPage() {
   }, [tasks, notes, reminders, loaded]);
 
   useEffect(() => {
+    const checkReminders = () => {
+      reminders.forEach((reminder) => {
+        if (
+          !reminder.done &&
+          new Date(reminder.at).getTime() <= Date.now() &&
+          !notifiedReminderIds.current.has(reminder.id)
+        ) {
+          notifiedReminderIds.current.add(reminder.id);
+          setNotice("Reminder: " + reminder.title);
+
+          if ("Notification" in window && Notification.permission === "granted") {
+            new Notification("Momentum reminder", {
+              body: reminder.title,
+              icon: "/images/momentum-logo.png",
+            });
+          }
+        }
+      });
+    };
+
+    checkReminders();
+    const reminderInterval = window.setInterval(checkReminders, 15000);
+    return () => window.clearInterval(reminderInterval);
+  }, [reminders]);
+
+  useEffect(() => {
     if (!timerRunning) return;
 
     if (timerSeconds <= 0) {
       setTimerRunning(false);
       setTimerFinished(true);
+      setNotice("Your focus session is complete.");
+
+      if ("Notification" in window && Notification.permission === "granted") {
+        new Notification("Momentum · Focus session complete", {
+          body: "Your focus timer has finished.",
+          icon: "/images/momentum-logo.png",
+        });
+      }
       return;
     }
 
@@ -468,9 +530,18 @@ export default function DashboardPage() {
               />
             </Link>
 
-            <p className="hidden text-xs uppercase tracking-[0.18em] text-[var(--muted)] sm:block">
-              Your personal workspace
-            </p>
+            <div className="flex items-center gap-3">
+              <p className="hidden text-xs uppercase tracking-[0.18em] text-[var(--muted)] sm:block">
+                Your personal workspace
+              </p>
+              <button
+                onClick={enableNotifications}
+                className="rounded-xl border border-[var(--ink)]/10 bg-white px-3 py-2 text-xs text-[var(--deep-blue)] hover:bg-[var(--mint)]/20"
+              >
+                <Bell size={14} className="mr-2 inline" />
+                {notificationPermission === "granted" ? "Notifications on" : "Enable notifications"}
+              </button>
+            </div>
 
             <Link
               href="/"
