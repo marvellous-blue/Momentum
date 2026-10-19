@@ -33,6 +33,29 @@ a {
   -webkit-tap-highlight-color: transparent;
 }
 
+input,
+select,
+textarea {
+  border-radius: 0.85rem;
+}
+
+button {
+  transition:
+    background-color 180ms ease,
+    color 180ms ease,
+    border-color 180ms ease,
+    transform 180ms ease;
+}
+
+button:active {
+  transform: translateY(1px);
+}
+
+::selection {
+  background: var(--mint);
+  color: var(--deep-blue);
+}
+
 
 /* @import "tailwindcss";
 
