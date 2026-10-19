@@ -1,30 +1,17 @@
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, ArrowUpRight, Play } from "lucide-react";
+import DashboardDemo from "../components/DashboardDemo"
 
 export default function Home() {
   return (
     <div className="bg-[var(--cream)] text-[var(--ink)]">
       <div className="mx-auto max-w-6xl px-6">
         <header className="flex h-16 items-center justify-between border-b border-[var(--ink)]/10">
-          <Link href="/" aria-label="Momentum home">
-            <Image
-              src="/images/momentum-logo.png"
-              alt="Momentum"
-              width={180}
-              height={60}
-              className="h-auto w-36"
-              priority
-            />
-          </Link>
-
           <nav className="flex items-center gap-5 text-xs sm:gap-7">
             <a href="#demo" className="text-[var(--muted)] hover:text-[var(--deep-blue)]">
               Demo
             </a>
-            <Link href="/how-it-works" className="text-[var(--muted)] hover:text-[var(--deep-blue)]">
-              How it works
-            </Link>
             <Link href="/contact" className="text-[var(--muted)] hover:text-[var(--deep-blue)]">
               Contact
             </Link>
@@ -128,6 +115,7 @@ export default function Home() {
         </div>
       </section>
 
+      
       <section id="demo" className="mx-auto max-w-6xl scroll-mt-8 px-6 py-16 md:py-24">
         <div className="grid items-end gap-6 md:grid-cols-12">
           <div className="md:col-span-8">
@@ -143,26 +131,28 @@ export default function Home() {
           </div>
 
           <p className="text-sm leading-6 text-[var(--muted)] md:col-span-4">
-            Watch how the dashboard helps you organize your work, save ideas
-            and keep track of what needs attention.
+            Try the dashboard right here — add a task, set a reminder, save a
+            note. Everything is saved locally in your browser.
           </p>
         </div>
 
-        <div className="mt-10 overflow-hidden rounded-3xl border border-[var(--ink)]/10 bg-[var(--ink)] shadow-sm">
-          <video
-            className="aspect-video w-full bg-[var(--ink)] object-contain"
-            controls
-            preload="metadata"
-            playsInline
-            aria-label="Momentum dashboard demonstration"
-          >
-            <source src="/dashboard-demo.mp4" type="video/mp4" />
-            Your browser does not support video playback.
-          </video>
+        {/* Live interactive demo in place of the video */}
+        <div className="mt-10 overflow-hidden rounded-3xl border border-[var(--ink)]/10 shadow-sm">
+          <div className="flex items-center gap-2 border-b border-[var(--ink)]/10 bg-white px-4 py-3">
+            <span className="h-3 w-3 rounded-full bg-red-400/70" />
+            <span className="h-3 w-3 rounded-full bg-yellow-400/70" />
+            <span className="h-3 w-3 rounded-full bg-green-400/70" />
+            <span className="ml-3 text-xs text-[var(--muted)]">momentum.app / dashboard</span>
+          </div>
+
+          {/* Constrain height so the demo scrolls internally instead of stretching the page */}
+          <div className="max-h-[80vh] overflow-y-auto bg-[var(--cream)]">
+            <DashboardDemo />
+          </div>
         </div>
 
         <p className="mt-3 text-xs text-[var(--muted)]">
-          Momentum dashboard demonstration
+          Live interactive demo — nothing leaves your device.
         </p>
       </section>
 
@@ -243,7 +233,6 @@ export default function Home() {
         <footer className="mt-12 flex flex-col justify-between gap-4 border-t border-[var(--ink)]/10 pt-6 text-xs text-[var(--muted)] sm:flex-row">
           <p>Momentum — make room for what matters.</p>
           <div className="flex gap-5">
-            <Link href="/how-it-works">How it works</Link>
             <Link href="/contact">Contact</Link>
             <Link href="/dashboard">Dashboard</Link>
           </div>

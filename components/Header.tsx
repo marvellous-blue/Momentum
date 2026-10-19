@@ -37,19 +37,9 @@ export default function Header() {
               Dashboard
             </Link>
 
-            <Link
-              href="/fix-my-day"
-              className="text-sm font-medium text-[var(--ink)] transition-colors hover:text-[var(--teal)]"
-            >
-              Fix My Day
-            </Link>
+            
 
-            <Link
-              href="/how-it-works"
-              className="text-sm font-medium text-[var(--ink)] transition-colors hover:text-[var(--teal)]"
-            >
-              How It Works
-            </Link>
+            
 
             <Link
               href="/about"
@@ -98,23 +88,9 @@ export default function Header() {
                   Dashboard
                 </Link>
 
-                <Link
-                  href="/fix-my-day"
-                  onClick={() => setIsOpen(false)}
-                  className="border-b border-[var(--deep-blue)]/10 py-6 text-4xl text-[var(--deep-blue)]"
-                  style={{ fontFamily: "var(--heading-font)" }}
-                >
-                  Fix My Day
-                </Link>
+                
 
-                <Link
-                  href="/how-it-works"
-                  onClick={() => setIsOpen(false)}
-                  className="border-b border-[var(--deep-blue)]/10 py-6 text-4xl text-[var(--deep-blue)]"
-                  style={{ fontFamily: "var(--heading-font)" }}
-                >
-                  How It Works
-                </Link>
+              
 
                 <Link
                   href="/about"

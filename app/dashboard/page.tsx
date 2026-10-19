@@ -615,19 +615,18 @@ export default function DashboardPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[var(--white)] text-[var(--ink)]">
+    <div className="min-h-screen bg-[var(--cream)] text-[var(--ink)]">
       <div className="flex min-h-screen">
         <aside className="hidden w-[250px] shrink-0 flex-col border-r border-[var(--deep-blue)]/10 px-5 py-7 lg:flex">
           <a href="/" className="mb-10 flex items-center gap-3">
             <Image
               src="/images/momentum-logo.png"
               alt="Momentum"
-              width={42}
-              height={42}
-              className="h-10 w-10 object-contain"
+              width={180}
+              height={60}
+              className="h-auto w-32 sm:w-36"
               priority
             />
-            <span className="text-xl font-semibold">momentum</span>
           </a>
 
           <p className="mb-3 px-3 text-xs font-semibold uppercase tracking-[0.16em] text-[var(--muted)]">
@@ -678,11 +677,11 @@ export default function DashboardPage() {
                 <Image
                   src="/images/momentum-logo.png"
                   alt="Momentum"
-                  width={36}
-                  height={36}
+                  width={180}
+                  height={60}
                   className="h-9 w-9 object-contain"
                 />
-                <span className="text-lg font-semibold">momentum</span>
+              
               </div>
 
               <div className="hidden lg:block">
@@ -1264,7 +1263,7 @@ export default function DashboardPage() {
           </section>
         </div>
       </div>
-    </main>
+    </div>
   );
 }
 

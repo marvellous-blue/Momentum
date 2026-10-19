@@ -32,12 +32,7 @@ export default function Footer() {
           <Link href="/about" className="transition-opacity hover:opacity-60">
             About
           </Link>
-          <Link
-            href="/how-it-works"
-            className="transition-opacity hover:opacity-60"
-          >
-            How It Works
-          </Link>
+        
           <Link
             href="/contact"
             className="transition-opacity hover:opacity-60"
@@ -48,7 +43,7 @@ export default function Footer() {
       </div>
 
       <div className="mx-auto mt-10 max-w-7xl border-t border-white/15 pt-5 text-xs text-white/50">
-        © 2026 Momentum. All rights reserved.
+        &copy; 2026 Momentum. All rights reserved.
       </div>
     </footer>
   );
