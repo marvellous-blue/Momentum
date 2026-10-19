@@ -1,7 +1,7 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
-import Image from "next/image";
+import { FormEvent, useEffect, useState } from "react";
+import Link from "next/link";
 import {
   ArrowRight,
   Bell,
@@ -132,7 +132,6 @@ export default function DashboardPage() {
   const [notificationPermission, setNotificationPermission] =
     useState<NotificationPermission | "unsupported">("default");
   const [notice, setNotice] = useState("");
-  const notifiedIds = useRef(new Set<string>());
 
   useEffect(() => {
     try {
@@ -168,57 +167,28 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!loaded) return;
 
-    localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify({ tasks, reminders, notes })
-    );
-  }, [loaded, tasks, reminders, notes]);
+    try {
+      localStorage.setItem(
+        storageKey,
+        JSON.stringify({ tasks, notes, reminders })
+      );
+    } catch {
+      setNotice("This browser could not save your latest changes.");
+    }
+  }, [tasks, notes, reminders, loaded]);
 
   useEffect(() => {
-    if (!loaded) return;
+    if (!timerRunning) return;
 
-    const checkReminders = () => {
-      const now = Date.now();
+    if (timerSeconds <= 0) {
+      setTimerRunning(false);
+      setTimerFinished(true);
+      return;
+    }
 
-      reminders.forEach((reminder) => {
-        const reminderTime = new Date(reminder.at).getTime();
-
-        if (
-          !reminder.done &&
-          !Number.isNaN(reminderTime) &&
-          reminderTime <= now &&
-          !notifiedIds.current.has(reminder.id)
-        ) {
-          notifiedIds.current.add(reminder.id);
-
-          localStorage.setItem(
-            NOTIFIED_KEY,
-            JSON.stringify([...notifiedIds.current])
-          );
-
-          setNotice(`Reminder due: ${reminder.title}`);
-
-          if (
-            "Notification" in window &&
-            Notification.permission === "granted"
-          ) {
-            try {
-              new Notification("Momentum reminder", {
-                body: reminder.title,
-                icon: "/images/momentum-logo.png",
-                tag: `momentum-${reminder.id}`,
-              });
-            } catch {
-              setNotice(`Reminder due: ${reminder.title}`);
-            }
-          }
-        }
-      });
-    };
-
-    checkReminders();
-
-    const interval = window.setInterval(checkReminders, 5000);
+    const intervalId = window.setInterval(() => {
+      setTimerSeconds((current) => current - 1);
+    }, 1000);
 
     return () => window.clearInterval(interval);
   }, [loaded, reminders]);
@@ -567,19 +537,17 @@ export default function DashboardPage() {
   };
 
   return (
-    <main className="min-h-screen bg-[var(--white)] text-[var(--ink)]">
-      <div className="flex min-h-screen">
-        <aside className="hidden w-[250px] shrink-0 flex-col border-r border-[var(--deep-blue)]/10 bg-[var(--white)] px-5 py-7 lg:flex">
-          <a href="/" className="mb-10 flex items-center gap-3">
-            <Image
-              src="/images/momentum-logo.png"
-              alt="Momentum"
-              width={42}
-              height={42}
-              className="h-10 w-10 object-contain"
-              priority
-            />
-            <span className="font-[var(--body-font)] text-xl font-semibold">
+    <div className="min-h-screen bg-[var(--cream)] text-[var(--ink)]">
+      <div className="mx-auto flex min-h-screen max-w-[1600px]">
+        <aside className="hidden w-64 shrink-0 border-r border-[var(--ink)]/10 bg-[var(--cream)] px-6 py-7 lg:flex lg:flex-col">
+          <Link href="/" className="flex items-center gap-3">
+            <span
+              className="grid h-10 w-10 place-items-center bg-[var(--deep-blue)] text-lg text-white"
+              style={{ fontFamily: "var(--heading-font)" }}
+            >
+              M
+            </span>
+            <span className="text-lg font-semibold tracking-tight">
               momentum
             </span>
           </a>
@@ -623,121 +591,278 @@ export default function DashboardPage() {
         </aside>
 
         <div className="min-w-0 flex-1">
-          <header className="sticky top-0 z-30 border-b border-[var(--deep-blue)]/10 bg-[var(--white)]/95 px-4 py-4 backdrop-blur sm:px-7 lg:px-10">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3 lg:hidden">
-                <Image
-                  src="/images/momentum-logo.png"
-                  alt="Momentum"
-                  width={36}
-                  height={36}
-                  className="h-9 w-9 object-contain"
-                />
-                <span className="font-[var(--body-font)] text-lg font-semibold">
-                  momentum
-                </span>
-              </div>
+          <header className="flex items-center justify-between border-b border-[var(--ink)]/10 px-5 py-4 sm:px-8 lg:px-10">
+            <Link href="/" className="flex items-center gap-2 lg:hidden">
+              <span
+                className="grid h-8 w-8 place-items-center bg-[var(--deep-blue)] text-white"
+                style={{ fontFamily: "var(--heading-font)" }}
+              >
+                M
+              </span>
+              <span className="text-sm font-semibold">momentum</span>
+            </Link>
 
-              <div className="hidden lg:block">
-                <p className="text-xs text-[var(--muted)]">
-                  Your personal workspace
-                </p>
-                <h1 className="mt-1 text-lg font-semibold">{section}</h1>
-              </div>
+            <p className="hidden text-xs uppercase tracking-[0.18em] text-[var(--muted)] sm:block">
+              Your personal workspace
+            </p>
 
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={enableNotifications}
-                  title="Enable browser notifications"
-                  className="flex items-center gap-2 rounded-xl border border-[var(--deep-blue)]/15 px-3 py-2 text-sm transition hover:bg-[var(--deep-blue)]/5"
-                >
-                  <Bell size={17} />
-                  <span className="hidden sm:inline">
-                    {notificationPermission === "granted"
-                      ? "Notifications on"
-                      : "Enable notifications"}
-                  </span>
-                </button>
-
-                <div className="relative">
-                  <button
-                    onClick={() => setMenuOpen((open) => !open)}
-                    aria-label={menuOpen ? "Close menu" : "Open menu"}
-                    aria-expanded={menuOpen}
-                    className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--deep-blue)]/15 transition hover:bg-[var(--deep-blue)]/5"
-                  >
-                    {menuOpen ? <X size={21} /> : <Menu size={21} />}
-                  </button>
-
-                  {menuOpen && (
-                    <div className="absolute right-0 top-12 z-50 w-60 rounded-2xl border border-[var(--deep-blue)]/10 bg-[var(--white)] p-2 shadow-xl">
-                      <p className="px-3 py-2 text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">
-                        Navigate
-                      </p>
-
-                      {navigation.map(({ name, icon: Icon }) => (
-                        <button
-                          key={name}
-                          onClick={() => changeSection(name)}
-                          className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm ${
-                            section === name
-                              ? "bg-[var(--deep-blue)] text-white"
-                              : "hover:bg-[var(--deep-blue)]/5"
-                          }`}
-                        >
-                          <Icon size={17} />
-                          {name}
-                        </button>
-                      ))}
-
-                      <a
-                        href="/"
-                        className="mt-1 flex items-center gap-3 rounded-xl px-3 py-3 text-sm text-[var(--teal)] hover:bg-[var(--deep-blue)]/5"
-                      >
-                        <ArrowRight size={17} />
-                        Momentum home
-                      </a>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-4 lg:hidden">
-              <p className="text-xs text-[var(--muted)]">Your workspace</p>
-              <h1 className="mt-1 text-xl font-semibold">{pageTitle[section]}</h1>
-            </div>
+            <Link
+              href="/"
+              className="text-xs text-[var(--muted)] transition-colors hover:text-[var(--deep-blue)]"
+            >
+              Visit website{" "}
+              <ArrowRight size={13} className="ml-1 inline" />
+            </Link>
           </header>
 
-          <section className="mx-auto max-w-6xl px-4 py-7 sm:px-7 sm:py-9 lg:px-10">
+          <div className="border-b border-[var(--ink)]/10 px-4 py-2 lg:hidden">
+            <nav className="flex gap-1 overflow-x-auto">
+              {navigation.map((item) => {
+                const Icon = item.icon;
+
+                return (
+                  <button
+                    key={item.label}
+                    onClick={() => setSection(item.label)}
+                    className={
+                      "flex shrink-0 items-center gap-2 px-3 py-2 text-xs " +
+                      (section === item.label
+                        ? "bg-[var(--deep-blue)] text-white"
+                        : "text-[var(--muted)]")
+                    }
+                  >
+                    <Icon size={14} />
+                    {item.label}
+                  </button>
+                );
+              })}
+            </nav>
+          </div>
+
+          <main className="px-5 py-8 sm:px-8 sm:py-10 lg:px-10 lg:py-12">
             {notice && (
-              <div
-                role="status"
-                className="mb-6 flex items-center justify-between gap-3 rounded-xl border border-[var(--teal)]/30 bg-[var(--teal)]/10 px-4 py-3 text-sm"
-              >
+              <div className="mb-6 flex items-center justify-between border border-[var(--ink)]/10 bg-white px-4 py-3 text-sm">
                 <span>{notice}</span>
                 <button
                   onClick={() => setNotice("")}
                   aria-label="Dismiss message"
-                  className="shrink-0"
                 >
-                  <X size={16} />
+                  <X size={15} />
                 </button>
               </div>
             )}
 
+            <div className="mb-9 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[var(--teal)]">
+                  Momentum / Workspace
+                </p>
+
+                <h1
+                  className="mt-3 text-4xl leading-none tracking-tight text-[var(--deep-blue)] sm:text-5xl"
+                  style={{ fontFamily: "var(--heading-font)" }}
+                >
+                  {section === "Overview"
+                    ? "Make room for what matters."
+                    : section}
+                </h1>
+
+                <p className="mt-3 max-w-xl text-sm leading-6 text-[var(--muted)]">
+                  {section === "Overview"
+                    ? "A simple view of today, with your next move close at hand."
+                    : section === "Tasks"
+                      ? "Keep the important things visible and the next step manageable."
+                      : section === "Assistant"
+                        ? "Use clear commands. Momentum follows rules, not an AI model."
+                        : section === "Notes"
+                          ? "Keep useful thoughts and ideas in one place."
+                          : "Give a reminder a real date and time so you know when it is due."}
+                </p>
+              </div>
+
+              {section !== "Assistant" && (
+                <button
+                  onClick={() =>
+                    setSection(
+                      section === "Notes"
+                        ? "Notes"
+                        : section === "Reminders"
+                          ? "Reminders"
+                          : "Tasks"
+                    )
+                  }
+                  className="inline-flex w-fit items-center gap-2 bg-[var(--deep-blue)] px-4 py-3 text-sm text-white transition-colors hover:bg-[var(--ink)]"
+                >
+                  <Plus size={16} />
+                  {section === "Notes"
+                    ? "New note"
+                    : section === "Reminders"
+                      ? "New reminder"
+                      : "Add a task"}
+                </button>
+              )}
+            </div>
+
             {section === "Overview" && (
-              <div className="space-y-7">
-                <div>
-                  <p className="text-sm text-[var(--teal)]">YOUR OVERVIEW</p>
-                  <h2 className="mt-2 max-w-2xl font-[var(--heading-font)] text-4xl leading-tight sm:text-5xl">
-                    {pageTitle.Overview}
-                  </h2>
-                  <p className="mt-3 max-w-xl text-sm leading-6 text-[var(--muted)]">
-                    See what needs attention, choose your next step, and make
-                    progress at your own pace.
-                  </p>
-                </div>
+              <div className="grid gap-6 xl:grid-cols-[minmax(0,1.4fr)_minmax(300px,0.8fr)]">
+                <div className="space-y-6">
+                  <section className="border border-[var(--ink)]/10 bg-white p-5 sm:p-7">
+                    <div className="flex flex-wrap items-start justify-between gap-4">
+                      <div>
+                        <p className="text-xs uppercase tracking-[0.16em] text-[var(--muted)]">
+                          Today's progress
+                        </p>
+
+                        <p
+                          className="mt-3 text-3xl text-[var(--deep-blue)]"
+                          style={{ fontFamily: "var(--heading-font)" }}
+                        >
+                          {completedCount} of {tasks.length} tasks complete
+                        </p>
+                      </div>
+
+                      <p
+                        className="text-2xl text-[var(--teal)]"
+                        style={{ fontFamily: "var(--heading-font)" }}
+                      >
+                        {progress}%
+                      </p>
+                    </div>
+
+                    <div className="mt-5 h-1.5 w-full bg-[var(--cream)]">
+                      <div
+                        className="h-full bg-[var(--teal)] transition-all"
+                        style={{ width: progress + "%" }}
+                      />
+                    </div>
+
+                    <div className="mt-5 flex flex-wrap gap-x-5 gap-y-2 text-xs text-[var(--muted)]">
+                      <span>{openTasks.length} still to do</span>
+                      <span>{notes.length} saved notes</span>
+                      <span>
+                        {reminders.filter((reminder) => !reminder.done).length}{" "}
+                        reminders open
+                      </span>
+                    </div>
+                  </section>
+
+                  <section className="border border-[var(--ink)]/10 bg-white p-5 sm:p-7">
+                    <div className="flex items-center justify-between gap-4">
+                      <div>
+                        <p className="text-xs uppercase tracking-[0.16em] text-[var(--teal)]">
+                          Your list
+                        </p>
+                        <h2
+                          className="mt-2 text-2xl text-[var(--deep-blue)]"
+                          style={{ fontFamily: "var(--heading-font)" }}
+                        >
+                          Next things to do
+                        </h2>
+                      </div>
+
+                      <button
+                        onClick={() => setSection("Tasks")}
+                        className="text-xs text-[var(--muted)] hover:text-[var(--deep-blue)]"
+                      >
+                        All tasks{" "}
+                        <ArrowRight size={13} className="ml-1 inline" />
+                      </button>
+                    </div>
+
+                    {openTasks.length ? (
+                      <div className="mt-5 divide-y divide-[var(--ink)]/10">
+                        {openTasks.slice(0, 4).map((task) => (
+                          <div
+                            key={task.id}
+                            className="flex items-center gap-3 py-4"
+                          >
+                            <button
+                              onClick={() =>
+                                setTasks((current) =>
+                                  current.map((item) =>
+                                    item.id === task.id
+                                      ? { ...item, done: true }
+                                      : item
+                                  )
+                                )
+                              }
+                              aria-label={"Complete " + task.title}
+                              className="text-[var(--teal)]"
+                            >
+                              <Circle size={18} strokeWidth={1.6} />
+                            </button>
+
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-sm">{task.title}</p>
+                              {task.dueDate && (
+                                <p className="mt-1 text-xs text-[var(--muted)]">
+                                  Due {task.dueDate}
+                                </p>
+                              )}
+                            </div>
+
+                            <span
+                              className={
+                                "text-[10px] uppercase tracking-wider " +
+                                (task.priority === "high"
+                                  ? "text-[var(--teal)]"
+                                  : "text-[var(--muted)]")
+                              }
+                            >
+                              {task.priority === "high"
+                                ? "Priority"
+                                : task.priority === "low"
+                                  ? "Later"
+                                  : "Normal"}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="mt-5 border-t border-[var(--ink)]/10 py-6 text-sm leading-6 text-[var(--muted)]">
+                        Your list is clear. Add one task when you are ready to
+                        begin.
+                      </p>
+                    )}
+
+                    <form
+                      onSubmit={taskForm}
+                      className="mt-4 flex gap-2 border-t border-[var(--ink)]/10 pt-5"
+                    >
+                      <input
+                        value={taskTitle}
+                        onChange={(event) => setTaskTitle(event.target.value)}
+                        placeholder="Add one thing to do…"
+                        className="min-w-0 flex-1 bg-[var(--cream)]/60 px-3 py-3 text-sm outline-none focus:ring-1 focus:ring-[var(--teal)]"
+                      />
+
+                      <button
+                        className="grid h-11 w-11 shrink-0 place-items-center bg-[var(--deep-blue)] text-white"
+                        aria-label="Add task"
+                      >
+                        <Plus size={18} />
+                      </button>
+                    </form>
+                  </section>
+
+                  <section className="border border-[var(--ink)]/10 bg-[var(--deep-blue)] p-5 text-white sm:p-7">
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <p className="text-xs uppercase tracking-[0.16em] text-[var(--mint)]">
+                          Focus time
+                        </p>
+
+                        <h2
+                          className="mt-2 text-2xl"
+                          style={{ fontFamily: "var(--heading-font)" }}
+                        >
+                          Give one thing your attention.
+                        </h2>
+
+                        <p className="mt-2 text-sm text-white/65">
+                          A simple 25-minute timer. No extra setup.
+                        </p>
+                      </div>
 
                 <div className="grid gap-4 sm:grid-cols-3">
                   <StatCard
@@ -812,16 +937,28 @@ export default function DashboardPage() {
                     )}
                   </div>
 
-                  <div className="rounded-2xl bg-[var(--deep-blue)] p-5 text-white sm:p-6">
-                    <p className="text-xs font-semibold uppercase tracking-wider text-[var(--mint)]">
-                      Quick assistant
-                    </p>
-                    <h3 className="mt-2 text-xl font-semibold">
-                      Get something out of your head.
-                    </h3>
-                    <p className="mt-2 text-sm leading-6 text-white/70">
-                      Add a task or save an idea without searching through
-                      different sections.
+                <div className="space-y-6">
+                  <section className="border border-[var(--ink)]/10 bg-white p-5 sm:p-7">
+                    <div className="flex items-center gap-3">
+                      <span className="grid h-9 w-9 place-items-center bg-[var(--cream)] text-[var(--deep-blue)]">
+                        <Sparkles size={17} />
+                      </span>
+
+                      <div>
+                        <p className="text-xs uppercase tracking-[0.16em] text-[var(--teal)]">
+                          Quick assistant
+                        </p>
+                        <h2
+                          className="mt-1 text-xl text-[var(--deep-blue)]"
+                          style={{ fontFamily: "var(--heading-font)" }}
+                        >
+                          Say what you need.
+                        </h2>
+                      </div>
+                    </div>
+
+                    <p className="mt-4 text-sm leading-6 text-[var(--muted)]">
+                      Try adding a task or saving an idea in plain language.
                     </p>
 
                     <form
@@ -835,8 +972,8 @@ export default function DashboardPage() {
                         onChange={(event) =>
                           setAssistantInput(event.target.value)
                         }
-                        placeholder="Add task: Finish my assignment"
-                        className="w-full rounded-xl border border-white/20 bg-white/10 px-3 py-3 text-sm text-white outline-none placeholder:text-white/50 focus:border-[var(--mint)]"
+                        placeholder="Add task: read chapter one"
+                        className="min-w-0 flex-1 border border-[var(--ink)]/10 px-3 py-3 text-sm outline-none focus:border-[var(--teal)]"
                       />
                       <button
                         type="submit"
@@ -861,7 +998,21 @@ export default function DashboardPage() {
                     >
                       All tasks
                     </button>
-                  </div>
+                  </section>
+
+                  <section className="border border-[var(--ink)]/10 bg-white p-5 sm:p-7">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs uppercase tracking-[0.16em] text-[var(--teal)]">
+                          Coming up
+                        </p>
+                        <h2
+                          className="mt-2 text-2xl text-[var(--deep-blue)]"
+                          style={{ fontFamily: "var(--heading-font)" }}
+                        >
+                          Reminders
+                        </h2>
+                      </div>
 
                   <div className="mt-4">
                     {tasks.length === 0 ? (
@@ -888,7 +1039,21 @@ export default function DashboardPage() {
                     >
                       All reminders
                     </button>
-                  </div>
+                  </section>
+
+                  <section className="border border-[var(--ink)]/10 bg-white p-5 sm:p-7">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs uppercase tracking-[0.16em] text-[var(--teal)]">
+                          Keep the thought
+                        </p>
+                        <h2
+                          className="mt-2 text-2xl text-[var(--deep-blue)]"
+                          style={{ fontFamily: "var(--heading-font)" }}
+                        >
+                          Notes
+                        </h2>
+                      </div>
 
                   <div className="mt-4">
                     {reminders.filter((reminder) => !reminder.done).length ===
@@ -913,13 +1078,7 @@ export default function DashboardPage() {
             )}
 
             {section === "Tasks" && (
-              <div className="space-y-6">
-                <PageIntro
-                  eyebrow="YOUR TASK LIST"
-                  title={pageTitle.Tasks}
-                  description="Add deadlines and priorities. Momentum uses them to suggest what you might want to do next."
-                />
-
+              <div className="max-w-4xl border border-[var(--ink)]/10 bg-white p-5 sm:p-8">
                 <form
                   onSubmit={addTask}
                   className="grid gap-3 rounded-2xl border border-[var(--deep-blue)]/10 p-4 sm:grid-cols-2 sm:p-5"
@@ -928,8 +1087,7 @@ export default function DashboardPage() {
                     value={taskTitle}
                     onChange={(event) => setTaskTitle(event.target.value)}
                     placeholder="What needs to get done?"
-                    required
-                    className="min-w-0 rounded-xl border border-[var(--deep-blue)]/15 px-3 py-3 text-sm outline-none focus:border-[var(--teal)] sm:col-span-2"
+                    className="min-w-0 border border-[var(--ink)]/10 px-3 py-3 text-sm outline-none focus:border-[var(--teal)]"
                   />
 
                   <select
@@ -937,7 +1095,7 @@ export default function DashboardPage() {
                     onChange={(event) =>
                       setTaskPriority(event.target.value as Priority)
                     }
-                    className="rounded-xl border border-[var(--deep-blue)]/15 bg-white px-3 py-3 text-sm outline-none focus:border-[var(--teal)]"
+                    className="border border-[var(--ink)]/10 bg-white px-3 py-3 text-sm"
                   >
                     <option value="high">High priority</option>
                     <option value="normal">Normal priority</option>
@@ -948,27 +1106,75 @@ export default function DashboardPage() {
                     type="date"
                     value={taskDueDate}
                     onChange={(event) => setTaskDueDate(event.target.value)}
-                    className="rounded-xl border border-[var(--deep-blue)]/15 bg-white px-3 py-3 text-sm outline-none focus:border-[var(--teal)]"
+                    aria-label="Task due date"
+                    className="border border-[var(--ink)]/10 px-3 py-3 text-sm"
                   />
 
-                  <button
-                    type="submit"
-                    className="flex items-center justify-center gap-2 rounded-xl bg-[var(--deep-blue)] px-4 py-3 text-sm text-white transition hover:opacity-90 sm:col-span-2"
-                  >
-                    <Plus size={17} />
-                    Add task
+                  <button className="inline-flex items-center justify-center gap-2 bg-[var(--deep-blue)] px-4 py-3 text-sm text-white">
+                    <Plus size={16} /> Add
                   </button>
                 </form>
 
-                <div className="flex items-center gap-2 rounded-xl border border-[var(--deep-blue)]/10 px-3">
-                  <Search size={17} className="text-[var(--muted)]" />
-                  <input
-                    value={searchText}
-                    onChange={(event) => setSearchText(event.target.value)}
-                    placeholder="Find a task..."
-                    className="w-full bg-transparent py-3 text-sm outline-none"
-                  />
-                </div>
+                <div className="mt-2 divide-y divide-[var(--ink)]/10">
+                  {tasks.length ? (
+                    tasks.map((task) => (
+                      <div
+                        key={task.id}
+                        className="flex items-start gap-3 py-5"
+                      >
+                        <button
+                          onClick={() =>
+                            setTasks((current) =>
+                              current.map((item) =>
+                                item.id === task.id
+                                  ? { ...item, done: !item.done }
+                                  : item
+                              )
+                            )
+                          }
+                          aria-label={
+                            task.done
+                              ? "Mark task incomplete"
+                              : "Mark task complete"
+                          }
+                          className={
+                            "mt-0.5 " +
+                            (task.done
+                              ? "text-[var(--teal)]"
+                              : "text-[var(--muted)]")
+                          }
+                        >
+                          {task.done ? (
+                            <CheckCircle2 size={19} />
+                          ) : (
+                            <Circle size={19} />
+                          )}
+                        </button>
+
+                        <div className="min-w-0 flex-1">
+                          <p
+                            className={
+                              "text-sm " +
+                              (task.done
+                                ? "text-[var(--muted)] line-through"
+                                : "text-[var(--ink)]")
+                            }
+                          >
+                            {task.title}
+                          </p>
+
+                          <div className="mt-2 flex flex-wrap gap-3 text-[10px] uppercase tracking-wider text-[var(--muted)]">
+                            <span>
+                              {task.priority === "high"
+                                ? "Priority"
+                                : task.priority === "low"
+                                  ? "Can wait"
+                                  : "Normal"}
+                            </span>
+
+                            {task.dueDate && <span>Due {task.dueDate}</span>}
+                          </div>
+                        </div>
 
                 <div className="rounded-2xl border border-[var(--deep-blue)]/10 p-4 sm:p-5">
                   {filteredTasks.length === 0 ? (
@@ -987,16 +1193,14 @@ export default function DashboardPage() {
               </div>
             )}
 
-            {section === "Reminders" && (
-              <div className="space-y-6">
-                <PageIntro
-                  eyebrow="YOUR REMINDERS"
-                  title={pageTitle.Reminders}
-                  description="Choose a future date and time. Keep this dashboard open to check for due reminders and show browser notifications."
-                />
+            {section === "Assistant" && (
+              <div className="grid max-w-5xl gap-6 lg:grid-cols-[minmax(0,1fr)_280px]">
+                <section className="border border-[var(--ink)]/10 bg-white p-5 sm:p-8">
+                  <div className="flex items-start gap-4 border-b border-[var(--ink)]/10 pb-6">
+                    <span className="grid h-11 w-11 place-items-center bg-[var(--deep-blue)] text-white">
+                      <Command size={20} />
+                    </span>
 
-                <div className="rounded-2xl border border-[var(--deep-blue)]/10 p-5">
-                  <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
                       <h3 className="font-semibold">Browser notifications</h3>
                       <p className="mt-1 text-sm leading-6 text-[var(--muted)]">
@@ -1010,39 +1214,29 @@ export default function DashboardPage() {
                       </p>
                     </div>
 
-                    <button
-                      onClick={enableNotifications}
-                      className="rounded-xl border border-[var(--deep-blue)]/15 px-4 py-2.5 text-sm hover:bg-[var(--deep-blue)]/5"
-                    >
-                      {notificationPermission === "granted"
-                        ? "Test notification"
-                        : "Enable"}
-                    </button>
+                  <div className="mt-6 border-l-2 border-[var(--mint)] bg-[var(--cream)]/60 px-4 py-4 text-sm leading-6">
+                    {assistantReply}
                   </div>
-                </div>
 
-                <form
-                  onSubmit={addReminder}
-                  className="grid gap-3 rounded-2xl border border-[var(--deep-blue)]/10 p-4 sm:grid-cols-2 sm:p-5"
-                >
-                  <input
-                    value={reminderTitle}
-                    onChange={(event) => setReminderTitle(event.target.value)}
-                    placeholder="What should you be reminded about?"
-                    required
-                    className="rounded-xl border border-[var(--deep-blue)]/15 px-3 py-3 text-sm outline-none focus:border-[var(--teal)] sm:col-span-2"
-                  />
+                  {confirmClear && (
+                    <div className="mt-4 border border-[var(--ink)]/15 p-4">
+                      <p className="text-sm">
+                        Delete all {tasks.length} tasks? This cannot be undone.
+                      </p>
 
-                  <input
-                    type="datetime-local"
-                    value={reminderAt}
-                    onChange={(event) => setReminderAt(event.target.value)}
-                    min={new Date(Date.now() - new Date().getTimezoneOffset() * 60000)
-                      .toISOString()
-                      .slice(0, 16)}
-                    required
-                    className="min-w-0 rounded-xl border border-[var(--deep-blue)]/15 bg-white px-3 py-3 text-sm outline-none focus:border-[var(--teal)]"
-                  />
+                      <div className="mt-4 flex gap-2">
+                        <button
+                          onClick={() => {
+                            setTasks([]);
+                            setConfirmClear(false);
+                            setAssistantReply(
+                              "All tasks have been removed from this device."
+                            );
+                          }}
+                          className="bg-[var(--deep-blue)] px-4 py-2 text-xs text-white"
+                        >
+                          Yes, delete tasks
+                        </button>
 
                   <button
                     type="submit"
@@ -1105,18 +1299,19 @@ export default function DashboardPage() {
                       placeholder="Type a supported command..."
                       className="min-w-0 flex-1 rounded-xl border border-white/20 bg-white/10 px-3 py-3 text-sm text-white outline-none placeholder:text-white/50 focus:border-[var(--mint)]"
                     />
-                    <button
-                      type="submit"
-                      aria-label="Send command"
-                      className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[var(--mint)] text-[var(--ink)]"
-                    >
-                      <Send size={18} />
+
+                    <button className="inline-flex items-center gap-2 bg-[var(--deep-blue)] px-4 py-3 text-sm text-white">
+                      <Send size={16} />
+                      <span className="hidden sm:inline">Send</span>
                     </button>
                   </form>
                 </div>
 
-                <div className="rounded-2xl border border-[var(--deep-blue)]/10 p-5 sm:p-6">
-                  <h3 className="font-semibold">Commands to try</h3>
+                <aside className="border border-[var(--ink)]/10 bg-white p-5 sm:p-6">
+                  <p className="text-xs uppercase tracking-[0.16em] text-[var(--teal)]">
+                    Try saying
+                  </p>
+
                   <div className="mt-4 space-y-3">
                     {[
                       "Add task: Finish my assignment",
@@ -1146,8 +1341,8 @@ export default function DashboardPage() {
                 />
 
                 <form
-                  onSubmit={saveNote}
-                  className="space-y-3 rounded-2xl border border-[var(--deep-blue)]/10 p-4 sm:p-5"
+                  onSubmit={noteForm}
+                  className="h-fit border border-[var(--ink)]/10 bg-white p-5 sm:p-7"
                 >
                   <input
                     value={noteTitle}
@@ -1166,28 +1361,9 @@ export default function DashboardPage() {
                     className="w-full resize-y rounded-xl border border-[var(--deep-blue)]/15 px-3 py-3 text-sm leading-6 outline-none focus:border-[var(--teal)]"
                   />
 
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      type="submit"
-                      className="rounded-xl bg-[var(--deep-blue)] px-4 py-3 text-sm text-white"
-                    >
-                      {editingNoteId ? "Update note" : "Save note"}
-                    </button>
-
-                    {editingNoteId && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setEditingNoteId(null);
-                          setNoteTitle("");
-                          setNoteBody("");
-                        }}
-                        className="rounded-xl border border-[var(--deep-blue)]/15 px-4 py-3 text-sm"
-                      >
-                        Cancel
-                      </button>
-                    )}
-                  </div>
+                  <button className="mt-4 inline-flex items-center gap-2 bg-[var(--deep-blue)] px-5 py-3 text-sm text-white">
+                    <Plus size={16} /> Save note
+                  </button>
                 </form>
 
                 <div className="grid gap-4 md:grid-cols-2">
@@ -1199,7 +1375,7 @@ export default function DashboardPage() {
                     notes.map((note) => (
                       <article
                         key={note.id}
-                        className="rounded-2xl border border-[var(--deep-blue)]/10 p-5"
+                        className="border border-[var(--ink)]/10 bg-white p-5"
                       >
                         <div className="flex items-start justify-between gap-3">
                           <h3 className="font-semibold">{note.title}</h3>
@@ -1233,117 +1409,64 @@ export default function DashboardPage() {
                 </div>
               </div>
             )}
-          </section>
-        </div>
-      </div>
-    </main>
-  );
-}
 
-function StatCard({
-  label,
-  value,
-  detail,
-}: {
-  label: string;
-  value: number;
-  detail: string;
-}) {
-  return (
-    <div className="rounded-2xl border border-[var(--deep-blue)]/10 p-5">
-      <p className="text-sm text-[var(--muted)]">{label}</p>
-      <p className="mt-3 text-3xl font-semibold">{value}</p>
-      <p className="mt-2 text-xs text-[var(--muted)]">{detail}</p>
-    </div>
-  );
-}
+            {section === "Reminders" && (
+              <div className="grid max-w-5xl gap-6 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
+                <form
+                  onSubmit={reminderForm}
+                  className="h-fit border border-[var(--ink)]/10 bg-white p-5 sm:p-7"
+                >
+                  <p className="text-xs uppercase tracking-[0.16em] text-[var(--teal)]">
+                    Create a reminder
+                  </p>
 
-function PageIntro({
-  eyebrow,
-  title,
-  description,
-}: {
-  eyebrow: string;
-  title: string;
-  description: string;
-}) {
-  return (
-    <div>
-      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--teal)]">
-        {eyebrow}
-      </p>
-      <h2 className="mt-2 max-w-3xl font-[var(--heading-font)] text-4xl leading-tight sm:text-5xl">
-        {title}
-      </h2>
-      <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--muted)]">
-        {description}
-      </p>
-    </div>
-  );
-}
+                  <label className="mt-5 block text-xs text-[var(--muted)]">
+                    What should you remember?
+                  </label>
 
-function EmptyState({ message }: { message: string }) {
-  return (
-    <div className="py-7 text-center">
-      <p className="text-sm leading-6 text-[var(--muted)]">{message}</p>
-    </div>
-  );
-}
+                  <input
+                    value={reminderTitle}
+                    onChange={(event) => setReminderTitle(event.target.value)}
+                    placeholder="Call Mum, take a break…"
+                    className="mt-2 w-full border border-[var(--ink)]/10 px-3 py-3 text-sm outline-none focus:border-[var(--teal)]"
+                  />
 
-function TaskRow({
-  task,
-  onToggle,
-  onDelete,
-}: {
-  task: Task;
-  onToggle: (id: string) => void;
-  onDelete: (id: string) => void;
-}) {
-  const overdue =
-    !task.done &&
-    !!task.dueDate &&
-    new Date(task.dueDate).getTime() <
-      new Date(new Date().toDateString()).getTime();
+                  <label className="mt-5 block text-xs text-[var(--muted)]">
+                    Date and time
+                  </label>
 
-  return (
-    <div className="flex items-start gap-3 border-b border-[var(--deep-blue)]/10 py-4 last:border-b-0">
-      <button
-        onClick={() => onToggle(task.id)}
-        aria-label={task.done ? "Mark task incomplete" : "Complete task"}
-        className="mt-0.5 shrink-0 text-[var(--teal)]"
-      >
-        {task.done ? <CheckCircle2 size={20} /> : <Circle size={20} />}
-      </button>
+                  <input
+                    type="datetime-local"
+                    value={reminderAt}
+                    onChange={(event) => setReminderAt(event.target.value)}
+                    className="mt-2 w-full border border-[var(--ink)]/10 px-3 py-3 text-sm outline-none focus:border-[var(--teal)]"
+                  />
 
-      <div className="min-w-0 flex-1">
-        <p
-          className={`break-words text-sm font-medium ${
-            task.done ? "text-[var(--muted)] line-through" : ""
-          }`}
-        >
-          {task.title}
-        </p>
+                  <button className="mt-5 inline-flex items-center gap-2 bg-[var(--deep-blue)] px-5 py-3 text-sm text-white">
+                    <Bell size={15} /> Save reminder
+                  </button>
 
-        <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-[var(--muted)]">
-          <span>
-            {task.priority === "high"
-              ? "High priority"
-              : task.priority === "normal"
-                ? "Normal priority"
-                : "Low priority"}
-          </span>
+                  <p className="mt-4 text-xs leading-5 text-[var(--muted)]">
+                    These reminders are saved in your browser. This first
+                    version does not send notifications while the website is
+                    closed.
+                  </p>
+                </form>
 
-          {task.dueDate && (
-            <>
-              <span>·</span>
-              <span className={overdue ? "font-medium text-red-600" : ""}>
-                {overdue ? "Overdue · " : "Due "}
-                {formatDate(task.dueDate)}
-              </span>
-            </>
-          )}
-        </div>
-      </div>
+                <section className="border border-[var(--ink)]/10 bg-white p-5 sm:p-7">
+                  <div className="flex items-center justify-between border-b border-[var(--ink)]/10 pb-4">
+                    <h2
+                      className="text-2xl text-[var(--deep-blue)]"
+                      style={{ fontFamily: "var(--heading-font)" }}
+                    >
+                      Your reminders
+                    </h2>
+
+                    <span className="text-xs text-[var(--muted)]">
+                      {reminders.filter((reminder) => !reminder.done).length}{" "}
+                      open
+                    </span>
+                  </div>
 
       <button
         onClick={() => onDelete(task.id)}
