@@ -1,7 +1,7 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
-import Link from "next/link";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import Image from "next/image";
 import {
   ArrowRight,
   Bell,
@@ -9,23 +9,20 @@ import {
   CheckCircle2,
   Circle,
   Clock3,
-  Command,
   FileText,
   LayoutDashboard,
   ListTodo,
-  MessageSquareText,
+  Menu,
   Plus,
+  Search,
   Send,
   Sparkles,
   Trash2,
   X,
-  Play,
-  Pause,
-  RotateCcw,
 } from "lucide-react";
 
 type Priority = "high" | "normal" | "low";
-type Section = "Overview" | "Tasks" | "Assistant" | "Notes" | "Reminders";
+type Section = "Overview" | "Tasks" | "Reminders" | "Assistant" | "Notes";
 
 type Task = {
   id: string;
@@ -33,13 +30,7 @@ type Task = {
   priority: Priority;
   done: boolean;
   dueDate: string;
-};
-
-type Note = {
-  id: string;
-  title: string;
-  body: string;
-  updatedAt: string;
+  createdAt: string;
 };
 
 type Reminder = {
@@ -49,60 +40,126 @@ type Reminder = {
   done: boolean;
 };
 
-type SavedData = {
-  tasks: Task[];
-  notes: Note[];
-  reminders: Reminder[];
+type Note = {
+  id: string;
+  title: string;
+  body: string;
+  updatedAt: string;
 };
 
-const storageKey = "momentum_dashboard_v1";
+const STORAGE_KEY = "momentum_dashboard_v2";
+const NOTIFIED_KEY = "momentum_notified_reminders_v1";
 
-const navigation: { label: Section; icon: typeof LayoutDashboard }[] = [
-  { label: "Overview", icon: LayoutDashboard },
-  { label: "Tasks", icon: ListTodo },
-  { label: "Assistant", icon: MessageSquareText },
-  { label: "Notes", icon: FileText },
-  { label: "Reminders", icon: Bell },
+const navigation: {
+  name: Section;
+  icon: typeof LayoutDashboard;
+}[] = [
+  { name: "Overview", icon: LayoutDashboard },
+  { name: "Tasks", icon: ListTodo },
+  { name: "Reminders", icon: Bell },
+  { name: "Assistant", icon: Sparkles },
+  { name: "Notes", icon: FileText },
 ];
+
+function makeId() {
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+}
+
+function formatDate(value: string) {
+  if (!value) return "No deadline";
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) return "No deadline";
+
+  return date.toLocaleDateString(undefined, {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+function formatTime(value: string) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) return "Invalid date";
+
+  return date.toLocaleString(undefined, {
+    day: "numeric",
+    month: "short",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+function reminderStatus(reminder: Reminder) {
+  if (reminder.done) return "Completed";
+
+  const time = new Date(reminder.at).getTime();
+
+  if (Number.isNaN(time)) return "Invalid date";
+  if (time <= Date.now()) return "Overdue";
+
+  return "Upcoming";
+}
 
 export default function DashboardPage() {
   const [section, setSection] = useState<Section>("Overview");
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [notes, setNotes] = useState<Note[]>([]);
-  const [reminders, setReminders] = useState<Reminder[]>([]);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [loaded, setLoaded] = useState(false);
+
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [reminders, setReminders] = useState<Reminder[]>([]);
+  const [notes, setNotes] = useState<Note[]>([]);
+
   const [taskTitle, setTaskTitle] = useState("");
   const [taskPriority, setTaskPriority] = useState<Priority>("normal");
   const [taskDueDate, setTaskDueDate] = useState("");
-  const [noteTitle, setNoteTitle] = useState("");
-  const [noteBody, setNoteBody] = useState("");
+
   const [reminderTitle, setReminderTitle] = useState("");
   const [reminderAt, setReminderAt] = useState("");
+
+  const [noteTitle, setNoteTitle] = useState("");
+  const [noteBody, setNoteBody] = useState("");
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
+
   const [assistantInput, setAssistantInput] = useState("");
   const [assistantReply, setAssistantReply] = useState(
-    "Hi. I can help you organize tasks, save an idea, or find what is already on your list."
+    "Tell me what you need to do. I can help organise tasks, find your next task, and save ideas."
   );
-  const [confirmClear, setConfirmClear] = useState(false);
-  const [timerSeconds, setTimerSeconds] = useState(25 * 60);
-  const [timerRunning, setTimerRunning] = useState(false);
-  const [timerFinished, setTimerFinished] = useState(false);
+
+  const [searchText, setSearchText] = useState("");
+  const [notificationPermission, setNotificationPermission] =
+    useState<NotificationPermission | "unsupported">("default");
   const [notice, setNotice] = useState("");
+  const notifiedIds = useRef(new Set<string>());
 
   useEffect(() => {
     try {
-      const saved = localStorage.getItem(storageKey);
+      const saved = localStorage.getItem(STORAGE_KEY);
 
       if (saved) {
-        const data = JSON.parse(saved) as SavedData;
+        const data = JSON.parse(saved);
 
         setTasks(Array.isArray(data.tasks) ? data.tasks : []);
-        setNotes(Array.isArray(data.notes) ? data.notes : []);
         setReminders(Array.isArray(data.reminders) ? data.reminders : []);
+        setNotes(Array.isArray(data.notes) ? data.notes : []);
+      }
+
+      const notified = localStorage.getItem(NOTIFIED_KEY);
+
+      if (notified) {
+        const ids = JSON.parse(notified);
+        if (Array.isArray(ids)) notifiedIds.current = new Set(ids);
       }
     } catch {
-      setNotice(
-        "Saved data could not be read. Your new changes can still be saved."
-      );
+      setNotice("Some saved data could not be loaded.");
+    }
+
+    if (!("Notification" in window)) {
+      setNotificationPermission("unsupported");
+    } else {
+      setNotificationPermission(Notification.permission);
     }
 
     setLoaded(true);
@@ -111,820 +168,768 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!loaded) return;
 
-    try {
-      localStorage.setItem(
-        storageKey,
-        JSON.stringify({ tasks, notes, reminders })
-      );
-    } catch {
-      setNotice("This browser could not save your latest changes.");
-    }
-  }, [tasks, notes, reminders, loaded]);
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ tasks, reminders, notes })
+    );
+  }, [loaded, tasks, reminders, notes]);
 
   useEffect(() => {
-    if (!timerRunning) return;
+    if (!loaded) return;
 
-    if (timerSeconds <= 0) {
-      setTimerRunning(false);
-      setTimerFinished(true);
-      return;
-    }
+    const checkReminders = () => {
+      const now = Date.now();
 
-    const intervalId = window.setInterval(() => {
-      setTimerSeconds((current) => current - 1);
-    }, 1000);
+      reminders.forEach((reminder) => {
+        const reminderTime = new Date(reminder.at).getTime();
 
-    return () => window.clearInterval(intervalId);
-  }, [timerRunning, timerSeconds]);
+        if (
+          !reminder.done &&
+          !Number.isNaN(reminderTime) &&
+          reminderTime <= now &&
+          !notifiedIds.current.has(reminder.id)
+        ) {
+          notifiedIds.current.add(reminder.id);
 
-  const completedCount = tasks.filter((task) => task.done).length;
-  const openTasks = tasks.filter((task) => !task.done);
-  const progress = tasks.length
-    ? Math.round((completedCount / tasks.length) * 100)
-    : 0;
+          localStorage.setItem(
+            NOTIFIED_KEY,
+            JSON.stringify([...notifiedIds.current])
+          );
 
-  const upcomingReminders = reminders
-    .filter((reminder) => !reminder.done)
-    .sort((a, b) => a.at.localeCompare(b.at))
-    .slice(0, 3);
+          setNotice(`Reminder due: ${reminder.title}`);
 
-  const clockDisplay =
-    String(Math.floor(timerSeconds / 60)).padStart(2, "0") +
-    ":" +
-    String(timerSeconds % 60).padStart(2, "0");
-
-  function addTask(
-    title = taskTitle,
-    priority = taskPriority,
-    dueDate = taskDueDate
-  ) {
-    const cleanTitle = title.trim();
-
-    if (!cleanTitle) {
-      setNotice("Give your task a name first.");
-      return false;
-    }
-
-    const task: Task = {
-      id: Date.now().toString() + Math.random().toString(16).slice(2, 7),
-      title: cleanTitle,
-      priority,
-      done: false,
-      dueDate,
+          if (
+            "Notification" in window &&
+            Notification.permission === "granted"
+          ) {
+            try {
+              new Notification("Momentum reminder", {
+                body: reminder.title,
+                icon: "/images/momentum-logo.png",
+                tag: `momentum-${reminder.id}`,
+              });
+            } catch {
+              setNotice(`Reminder due: ${reminder.title}`);
+            }
+          }
+        }
+      });
     };
 
-    setTasks((current) => [task, ...current]);
+    checkReminders();
+
+    const interval = window.setInterval(checkReminders, 5000);
+
+    return () => window.clearInterval(interval);
+  }, [loaded, reminders]);
+
+  const completedTasks = tasks.filter((task) => task.done).length;
+  const remainingTasks = tasks.filter((task) => !task.done);
+
+  const nextTask = useMemo(() => {
+    const priorityOrder: Record<Priority, number> = {
+      high: 0,
+      normal: 1,
+      low: 2,
+    };
+
+    return [...remainingTasks].sort((a, b) => {
+      const aDue = a.dueDate ? new Date(a.dueDate).getTime() : Infinity;
+      const bDue = b.dueDate ? new Date(b.dueDate).getTime() : Infinity;
+
+      const aOverdue = aDue < Date.now();
+      const bOverdue = bDue < Date.now();
+
+      if (aOverdue !== bOverdue) return aOverdue ? -1 : 1;
+
+      if (priorityOrder[a.priority] !== priorityOrder[b.priority]) {
+        return priorityOrder[a.priority] - priorityOrder[b.priority];
+      }
+
+      return aDue - bDue;
+    })[0];
+  }, [remainingTasks]);
+
+  const upcomingReminders = reminders.filter(
+    (reminder) => !reminder.done
+  ).length;
+
+  const filteredTasks = tasks.filter((task) =>
+    task.title.toLowerCase().includes(searchText.toLowerCase())
+  );
+
+  function addTask(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const title = taskTitle.trim();
+    if (!title) return;
+
+    const newTask: Task = {
+      id: makeId(),
+      title,
+      priority: taskPriority,
+      done: false,
+      dueDate: taskDueDate,
+      createdAt: new Date().toISOString(),
+    };
+
+    setTasks((current) => [newTask, ...current]);
     setTaskTitle("");
     setTaskDueDate("");
     setTaskPriority("normal");
     setNotice("Task added.");
-
-    return true;
   }
 
-  function addNote(title: string, body: string) {
-    const cleanBody = body.trim();
-    const cleanTitle =
-      title.trim() || cleanBody.split("\n")[0].slice(0, 42) || "Untitled note";
-
-    if (!cleanBody) {
-      setNotice("Write something in your note first.");
-      return false;
-    }
-
-    const note: Note = {
-      id: Date.now().toString() + Math.random().toString(16).slice(2, 7),
-      title: cleanTitle,
-      body: cleanBody,
-      updatedAt: new Date().toISOString(),
-    };
-
-    setNotes((current) => [note, ...current]);
-    setNoteTitle("");
-    setNoteBody("");
-    setNotice("Note saved on this device.");
-
-    return true;
+  function toggleTask(id: string) {
+    setTasks((current) =>
+      current.map((task) =>
+        task.id === id ? { ...task, done: !task.done } : task
+      )
+    );
   }
 
-  function addReminder(title: string, at: string) {
-    if (!title.trim() || !at) {
-      setNotice("Add a reminder name and a date and time.");
-      return false;
+  function deleteTask(id: string) {
+    setTasks((current) => current.filter((task) => task.id !== id));
+    setNotice("Task deleted.");
+  }
+
+  function addReminder(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const title = reminderTitle.trim();
+    const time = new Date(reminderAt).getTime();
+
+    if (!title || !reminderAt || Number.isNaN(time)) {
+      setNotice("Enter a reminder and a valid date and time.");
+      return;
     }
 
-    if (new Date(at).getTime() < Date.now()) {
+    if (time <= Date.now()) {
       setNotice("Choose a future time for this reminder.");
-      return false;
+      return;
     }
 
     const reminder: Reminder = {
-      id: Date.now().toString() + Math.random().toString(16).slice(2, 7),
-      title: title.trim(),
-      at,
+      id: makeId(),
+      title,
+      at: new Date(time).toISOString(),
       done: false,
     };
 
     setReminders((current) =>
-      [reminder, ...current].sort((a, b) => a.at.localeCompare(b.at))
+      [...current, reminder].sort(
+        (a, b) =>
+          new Date(a.at).getTime() - new Date(b.at).getTime()
+      )
     );
+
     setReminderTitle("");
     setReminderAt("");
-    setNotice(
-      "Reminder saved. Keep Momentum open if you want to check it here."
-    );
-
-    return true;
+    setNotice("Reminder saved.");
   }
 
-  function runAssistant(event: FormEvent<HTMLFormElement>) {
+  function toggleReminder(id: string) {
+    setReminders((current) =>
+      current.map((reminder) => {
+        if (reminder.id !== id) return reminder;
+
+        const done = !reminder.done;
+
+        if (done) {
+          notifiedIds.current.add(id);
+        } else {
+          notifiedIds.current.delete(id);
+        }
+
+        localStorage.setItem(
+          NOTIFIED_KEY,
+          JSON.stringify([...notifiedIds.current])
+        );
+
+        return { ...reminder, done };
+      })
+    );
+  }
+
+  function deleteReminder(id: string) {
+    setReminders((current) =>
+      current.filter((reminder) => reminder.id !== id)
+    );
+
+    notifiedIds.current.delete(id);
+
+    localStorage.setItem(
+      NOTIFIED_KEY,
+      JSON.stringify([...notifiedIds.current])
+    );
+
+    setNotice("Reminder deleted.");
+  }
+
+  async function enableNotifications() {
+    if (!("Notification" in window)) {
+      setNotificationPermission("unsupported");
+      setNotice("This browser does not support notifications.");
+      return;
+    }
+
+    try {
+      const permission = await Notification.requestPermission();
+
+      setNotificationPermission(permission);
+
+      if (permission === "granted") {
+        setNotice("Browser notifications enabled.");
+
+        new Notification("Momentum", {
+          body: "Notifications are working.",
+          icon: "/images/momentum-logo.png",
+        });
+      } else {
+        setNotice(
+          "Notifications were not enabled. Check your browser site settings."
+        );
+      }
+    } catch {
+      setNotice("Could not enable notifications in this browser.");
+    }
+  }
+
+  function saveNote(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    const raw = assistantInput.trim();
-    const command = raw.toLowerCase();
+    const title = noteTitle.trim();
+    const body = noteBody.trim();
 
-    if (!raw) return;
+    if (!title || !body) {
+      setNotice("Enter a note title and some text.");
+      return;
+    }
 
-    if (
-      command === "show my tasks" ||
-      command === "show tasks" ||
-      command === "list my tasks"
-    ) {
-      setSection("Tasks");
-
-      setAssistantReply(
-        openTasks.length
-          ? "Here are your unfinished tasks. You have " +
-              openTasks.length +
-              " still open."
-          : "You have no unfinished tasks right now."
+    if (editingNoteId) {
+      setNotes((current) =>
+        current.map((note) =>
+          note.id === editingNoteId
+            ? {
+                ...note,
+                title,
+                body,
+                updatedAt: new Date().toISOString(),
+              }
+            : note
+        )
       );
-    } else if (
-      command.startsWith("add task:") ||
-      command.startsWith("add task ")
-    ) {
-      const title = raw
-        .slice(raw.indexOf("task") + 4)
-        .replace(/^[:\s]+/, "")
-        .trim();
 
-      if (title) {
-        addTask(title, "normal", "");
-        setAssistantReply("Added “" + title + "” to your task list.");
-        setSection("Tasks");
+      setNotice("Note updated.");
+    } else {
+      setNotes((current) => [
+        {
+          id: makeId(),
+          title,
+          body,
+          updatedAt: new Date().toISOString(),
+        },
+        ...current,
+      ]);
+
+      setNotice("Note saved.");
+    }
+
+    setEditingNoteId(null);
+    setNoteTitle("");
+    setNoteBody("");
+  }
+
+  function editNote(note: Note) {
+    setEditingNoteId(note.id);
+    setNoteTitle(note.title);
+    setNoteBody(note.body);
+    setSection("Notes");
+  }
+
+  function deleteNote(id: string) {
+    setNotes((current) => current.filter((note) => note.id !== id));
+    setNotice("Note deleted.");
+  }
+
+  function handleAssistant(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const input = assistantInput.trim();
+    const lower = input.toLowerCase();
+
+    if (!input) return;
+
+    if (lower.startsWith("add task:")) {
+      const title = input.slice("add task:".length).trim();
+
+      if (!title) {
+        setAssistantReply("Write the task after “Add task:”.");
       } else {
-        setAssistantReply(
-          "What should the task be called? Try “Add task: Finish my report”."
-        );
+        setTasks((current) => [
+          {
+            id: makeId(),
+            title,
+            priority: "normal",
+            done: false,
+            dueDate: "",
+            createdAt: new Date().toISOString(),
+          },
+          ...current,
+        ]);
+
+        setAssistantReply(`Added “${title}” to your tasks.`);
       }
     } else if (
-      command.startsWith("save this idea:") ||
-      command.startsWith("save idea:")
+      lower.includes("show my tasks") ||
+      lower.includes("list my tasks")
     ) {
-      const idea = raw.slice(raw.indexOf(":") + 1).trim();
+      const unfinished = tasks.filter((task) => !task.done);
 
-      if (idea) {
-        addNote("Saved idea", idea);
-        setAssistantReply("Saved that idea in Notes on this device.");
-        setSection("Notes");
-      } else {
-        setAssistantReply(
-          "Write the idea after the colon, like “Save this idea: a budgeting app”."
-        );
-      }
+      setAssistantReply(
+        unfinished.length
+          ? `You have ${unfinished.length} unfinished task(s): ${unfinished
+              .slice(0, 5)
+              .map((task) => task.title)
+              .join(", ")}.`
+          : "You have no unfinished tasks. You can add a new one in Tasks."
+      );
     } else if (
-      command.startsWith("i finished") ||
-      command.startsWith("mark done")
+      lower.includes("next task") ||
+      lower.includes("what should i do")
     ) {
-      const searchText = command
-        .replace(/^i finished/, "")
-        .replace(/^mark done/, "")
-        .trim();
-
-      const matches = openTasks.filter(
-        (task) => searchText && task.title.toLowerCase().includes(searchText)
+      setAssistantReply(
+        nextTask
+          ? `Consider doing “${nextTask.title}” next. Its priority is ${nextTask.priority}${
+              nextTask.dueDate
+                ? ` and its deadline is ${formatDate(nextTask.dueDate)}`
+                : ""
+            }.`
+          : "You have no unfinished tasks. Add a task when you are ready."
       );
+    } else if (lower.startsWith("save this idea:")) {
+      const idea = input.slice("save this idea:".length).trim();
 
-      if (matches.length === 1) {
-        setTasks((current) =>
-          current.map((task) =>
-            task.id === matches[0].id ? { ...task, done: true } : task
-          )
-        );
-
-        setAssistantReply("Marked “" + matches[0].title + "” as done.");
-      } else if (matches.length > 1) {
-        setAssistantReply(
-          "I found more than one matching task. Open Tasks and choose the exact one."
-        );
-        setSection("Tasks");
+      if (!idea) {
+        setAssistantReply("Write your idea after “Save this idea:”.");
       } else {
-        setAssistantReply(
-          "I couldn't confidently match that to one task. Open Tasks and mark the exact task as done."
-        );
-        setSection("Tasks");
+        setNotes((current) => [
+          {
+            id: makeId(),
+            title: "Idea",
+            body: idea,
+            updatedAt: new Date().toISOString(),
+          },
+          ...current,
+        ]);
+
+        setAssistantReply("Saved your idea in Notes.");
       }
+    } else if (lower.includes("remind me to")) {
+      setAssistantReply(
+        "I can save reminders, but I need the exact date and time. Open Reminders and enter them in the form."
+      );
     } else if (
-      command === "delete all my tasks" ||
-      command === "delete all tasks" ||
-      command === "clear all tasks"
+      lower.includes("delete all tasks") ||
+      lower.includes("clear all tasks")
     ) {
-      setConfirmClear(true);
+      const confirmed = window.confirm(
+        "Delete every task? This cannot be undone."
+      );
 
-      setAssistantReply(
-        "This would remove every task saved on this device. Confirm below if you really want to continue."
-      );
-    } else if (command.startsWith("remind me to")) {
-      setSection("Reminders");
-
-      setAssistantReply(
-        "I need an exact date and time before I can save a reminder. Use the Reminders form to set both."
-      );
-    } else if (command === "help" || command === "what can you do") {
-      setAssistantReply(
-        "Try “Add task: Finish my report”, “Show my tasks”, “I finished Finish my report”, “Save this idea: a budgeting app”, or “Delete all tasks”. I'll ask instead of guessing when something is unclear."
-      );
+      if (confirmed) {
+        setTasks([]);
+        setAssistantReply("All tasks have been deleted.");
+      } else {
+        setAssistantReply("No tasks were deleted.");
+      }
     } else {
       setAssistantReply(
-        "I don't know how to do that yet. Try “Add task: …”, “Show my tasks”, or “Save this idea: …”."
+        "Try “Add task: Finish my assignment”, “Show my tasks”, “What should I do next?”, or “Save this idea: a budgeting app”."
       );
     }
 
     setAssistantInput("");
   }
 
-  function formatDate(value: string) {
-    if (!value) return "";
-
-    const date = new Date(value);
-
-    if (Number.isNaN(date.getTime())) return value;
-
-    return date.toLocaleString([], {
-      month: "short",
-      day: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-    });
+  function changeSection(name: Section) {
+    setSection(name);
+    setMenuOpen(false);
+    setSearchText("");
   }
 
-  function taskForm(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    addTask();
-  }
-
-  function reminderForm(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    addReminder(reminderTitle, reminderAt);
-  }
-
-  function noteForm(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    addNote(noteTitle, noteBody);
-  }
+  const pageTitle: Record<Section, string> = {
+    Overview: "Your day, in focus.",
+    Tasks: "Make progress, one task at a time.",
+    Reminders: "Keep the important things in view.",
+    Assistant: "Let's organise your thoughts.",
+    Notes: "Keep your ideas somewhere safe.",
+  };
 
   return (
-    <div className="min-h-screen bg-[var(--cream)] text-[var(--ink)]">
-      <div className="mx-auto flex min-h-screen max-w-[1600px]">
-        <aside className="hidden w-64 shrink-0 border-r border-[var(--ink)]/10 bg-[var(--cream)] px-6 py-7 lg:flex lg:flex-col">
-          <Link href="/" className="flex items-center gap-3">
-            <span
-              className="grid h-10 w-10 place-items-center bg-[var(--deep-blue)] text-lg text-white"
-              style={{ fontFamily: "var(--heading-font)" }}
-            >
-              M
-            </span>
-            <span className="text-lg font-semibold tracking-tight">
+    <main className="min-h-screen bg-[var(--white)] text-[var(--ink)]">
+      <div className="flex min-h-screen">
+        <aside className="hidden w-[250px] shrink-0 flex-col border-r border-[var(--deep-blue)]/10 bg-[var(--white)] px-5 py-7 lg:flex">
+          <a href="/" className="mb-10 flex items-center gap-3">
+            <Image
+              src="/images/momentum-logo.png"
+              alt="Momentum"
+              width={42}
+              height={42}
+              className="h-10 w-10 object-contain"
+              priority
+            />
+            <span className="font-[var(--body-font)] text-xl font-semibold">
               momentum
             </span>
-          </Link>
+          </a>
 
-          <p className="mt-12 text-[10px] font-semibold uppercase tracking-[0.2em] text-[var(--muted)]">
+          <p className="mb-3 px-3 text-xs font-semibold uppercase tracking-[0.16em] text-[var(--muted)]">
             Workspace
           </p>
 
-          <nav className="mt-4 space-y-1">
-            {navigation.map((item) => {
-              const Icon = item.icon;
-
-              return (
-                <button
-                  key={item.label}
-                  onClick={() => setSection(item.label)}
-                  className={
-                    "flex w-full items-center gap-3 px-3 py-3 text-left text-sm transition-colors " +
-                    (section === item.label
-                      ? "bg-[var(--deep-blue)] text-white"
-                      : "text-[var(--muted)] hover:bg-white hover:text-[var(--deep-blue)]")
-                  }
-                >
-                  <Icon size={17} strokeWidth={1.8} />
-                  {item.label}
-
-                  {item.label === "Tasks" && openTasks.length > 0 && (
-                    <span
-                      className={
-                        "ml-auto text-xs " +
-                        (section === item.label
-                          ? "text-white/70"
-                          : "text-[var(--muted)]")
-                      }
-                    >
-                      {openTasks.length}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
+          <nav className="flex flex-col gap-1">
+            {navigation.map(({ name, icon: Icon }) => (
+              <button
+                key={name}
+                onClick={() => changeSection(name)}
+                className={`flex items-center gap-3 rounded-xl px-3 py-3 text-left text-sm transition ${
+                  section === name
+                    ? "bg-[var(--deep-blue)] text-white"
+                    : "text-[var(--muted)] hover:bg-[var(--deep-blue)]/5 hover:text-[var(--ink)]"
+                }`}
+              >
+                <Icon size={18} strokeWidth={1.8} />
+                {name}
+                {name === "Reminders" && upcomingReminders > 0 && (
+                  <span className="ml-auto text-xs">{upcomingReminders}</span>
+                )}
+              </button>
+            ))}
           </nav>
 
-          <div className="mt-auto border-t border-[var(--ink)]/10 pt-5">
-            <p className="text-sm leading-6 text-[var(--muted)]">
-              A little clarity can change the direction of your day.
+          <div className="mt-auto border-t border-[var(--deep-blue)]/10 pt-5">
+            <p className="text-sm font-medium">One step at a time.</p>
+            <p className="mt-1 text-xs leading-5 text-[var(--muted)]">
+              You don't need to do everything at once.
             </p>
-
-            <Link
+            <a
               href="/"
-              className="mt-4 inline-flex items-center gap-2 text-xs text-[var(--deep-blue)]"
+              className="mt-4 inline-flex items-center gap-2 text-sm text-[var(--teal)] hover:underline"
             >
-              Back to Momentum <ArrowRight size={14} />
-            </Link>
+              Momentum home <ArrowRight size={15} />
+            </a>
           </div>
         </aside>
 
         <div className="min-w-0 flex-1">
-          <header className="flex items-center justify-between border-b border-[var(--ink)]/10 px-5 py-4 sm:px-8 lg:px-10">
-            <Link href="/" className="flex items-center gap-2 lg:hidden">
-              <span
-                className="grid h-8 w-8 place-items-center bg-[var(--deep-blue)] text-white"
-                style={{ fontFamily: "var(--heading-font)" }}
-              >
-                M
-              </span>
-              <span className="text-sm font-semibold">momentum</span>
-            </Link>
+          <header className="sticky top-0 z-30 border-b border-[var(--deep-blue)]/10 bg-[var(--white)]/95 px-4 py-4 backdrop-blur sm:px-7 lg:px-10">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 lg:hidden">
+                <Image
+                  src="/images/momentum-logo.png"
+                  alt="Momentum"
+                  width={36}
+                  height={36}
+                  className="h-9 w-9 object-contain"
+                />
+                <span className="font-[var(--body-font)] text-lg font-semibold">
+                  momentum
+                </span>
+              </div>
 
-            <p className="hidden text-xs uppercase tracking-[0.18em] text-[var(--muted)] sm:block">
-              Your personal workspace
-            </p>
+              <div className="hidden lg:block">
+                <p className="text-xs text-[var(--muted)]">
+                  Your personal workspace
+                </p>
+                <h1 className="mt-1 text-lg font-semibold">{section}</h1>
+              </div>
 
-            <Link
-              href="/"
-              className="text-xs text-[var(--muted)] transition-colors hover:text-[var(--deep-blue)]"
-            >
-              Visit website{" "}
-              <ArrowRight size={13} className="ml-1 inline" />
-            </Link>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={enableNotifications}
+                  title="Enable browser notifications"
+                  className="flex items-center gap-2 rounded-xl border border-[var(--deep-blue)]/15 px-3 py-2 text-sm transition hover:bg-[var(--deep-blue)]/5"
+                >
+                  <Bell size={17} />
+                  <span className="hidden sm:inline">
+                    {notificationPermission === "granted"
+                      ? "Notifications on"
+                      : "Enable notifications"}
+                  </span>
+                </button>
+
+                <div className="relative">
+                  <button
+                    onClick={() => setMenuOpen((open) => !open)}
+                    aria-label={menuOpen ? "Close menu" : "Open menu"}
+                    aria-expanded={menuOpen}
+                    className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--deep-blue)]/15 transition hover:bg-[var(--deep-blue)]/5"
+                  >
+                    {menuOpen ? <X size={21} /> : <Menu size={21} />}
+                  </button>
+
+                  {menuOpen && (
+                    <div className="absolute right-0 top-12 z-50 w-60 rounded-2xl border border-[var(--deep-blue)]/10 bg-[var(--white)] p-2 shadow-xl">
+                      <p className="px-3 py-2 text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">
+                        Navigate
+                      </p>
+
+                      {navigation.map(({ name, icon: Icon }) => (
+                        <button
+                          key={name}
+                          onClick={() => changeSection(name)}
+                          className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm ${
+                            section === name
+                              ? "bg-[var(--deep-blue)] text-white"
+                              : "hover:bg-[var(--deep-blue)]/5"
+                          }`}
+                        >
+                          <Icon size={17} />
+                          {name}
+                        </button>
+                      ))}
+
+                      <a
+                        href="/"
+                        className="mt-1 flex items-center gap-3 rounded-xl px-3 py-3 text-sm text-[var(--teal)] hover:bg-[var(--deep-blue)]/5"
+                      >
+                        <ArrowRight size={17} />
+                        Momentum home
+                      </a>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-4 lg:hidden">
+              <p className="text-xs text-[var(--muted)]">Your workspace</p>
+              <h1 className="mt-1 text-xl font-semibold">{pageTitle[section]}</h1>
+            </div>
           </header>
 
-          <div className="border-b border-[var(--ink)]/10 px-4 py-2 lg:hidden">
-            <nav className="flex gap-1 overflow-x-auto">
-              {navigation.map((item) => {
-                const Icon = item.icon;
-
-                return (
-                  <button
-                    key={item.label}
-                    onClick={() => setSection(item.label)}
-                    className={
-                      "flex shrink-0 items-center gap-2 px-3 py-2 text-xs " +
-                      (section === item.label
-                        ? "bg-[var(--deep-blue)] text-white"
-                        : "text-[var(--muted)]")
-                    }
-                  >
-                    <Icon size={14} />
-                    {item.label}
-                  </button>
-                );
-              })}
-            </nav>
-          </div>
-
-          <main className="px-5 py-8 sm:px-8 sm:py-10 lg:px-10 lg:py-12">
+          <section className="mx-auto max-w-6xl px-4 py-7 sm:px-7 sm:py-9 lg:px-10">
             {notice && (
-              <div className="mb-6 flex items-center justify-between border border-[var(--ink)]/10 bg-white px-4 py-3 text-sm">
+              <div
+                role="status"
+                className="mb-6 flex items-center justify-between gap-3 rounded-xl border border-[var(--teal)]/30 bg-[var(--teal)]/10 px-4 py-3 text-sm"
+              >
                 <span>{notice}</span>
                 <button
                   onClick={() => setNotice("")}
                   aria-label="Dismiss message"
+                  className="shrink-0"
                 >
-                  <X size={15} />
+                  <X size={16} />
                 </button>
               </div>
             )}
 
-            <div className="mb-9 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
-              <div>
-                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[var(--teal)]">
-                  Momentum / Workspace
-                </p>
-
-                <h1
-                  className="mt-3 text-4xl leading-none tracking-tight text-[var(--deep-blue)] sm:text-5xl"
-                  style={{ fontFamily: "var(--heading-font)" }}
-                >
-                  {section === "Overview"
-                    ? "Make room for what matters."
-                    : section}
-                </h1>
-
-                <p className="mt-3 max-w-xl text-sm leading-6 text-[var(--muted)]">
-                  {section === "Overview"
-                    ? "A simple view of today, with your next move close at hand."
-                    : section === "Tasks"
-                      ? "Keep the important things visible and the next step manageable."
-                      : section === "Assistant"
-                        ? "Use clear commands. Momentum follows rules, not an AI model."
-                        : section === "Notes"
-                          ? "Keep useful thoughts and ideas in one place."
-                          : "Give a reminder a real date and time so you know when it is due."}
-                </p>
-              </div>
-
-              {section !== "Assistant" && (
-                <button
-                  onClick={() =>
-                    setSection(
-                      section === "Notes"
-                        ? "Notes"
-                        : section === "Reminders"
-                          ? "Reminders"
-                          : "Tasks"
-                    )
-                  }
-                  className="inline-flex w-fit items-center gap-2 bg-[var(--deep-blue)] px-4 py-3 text-sm text-white transition-colors hover:bg-[var(--ink)]"
-                >
-                  <Plus size={16} />
-                  {section === "Notes"
-                    ? "New note"
-                    : section === "Reminders"
-                      ? "New reminder"
-                      : "Add a task"}
-                </button>
-              )}
-            </div>
-
             {section === "Overview" && (
-              <div className="grid gap-6 xl:grid-cols-[minmax(0,1.4fr)_minmax(300px,0.8fr)]">
-                <div className="space-y-6">
-                  <section className="border border-[var(--ink)]/10 bg-white p-5 sm:p-7">
-                    <div className="flex flex-wrap items-start justify-between gap-4">
-                      <div>
-                        <p className="text-xs uppercase tracking-[0.16em] text-[var(--muted)]">
-                          Today's progress
-                        </p>
-
-                        <p
-                          className="mt-3 text-3xl text-[var(--deep-blue)]"
-                          style={{ fontFamily: "var(--heading-font)" }}
-                        >
-                          {completedCount} of {tasks.length} tasks complete
-                        </p>
-                      </div>
-
-                      <p
-                        className="text-2xl text-[var(--teal)]"
-                        style={{ fontFamily: "var(--heading-font)" }}
-                      >
-                        {progress}%
-                      </p>
-                    </div>
-
-                    <div className="mt-5 h-1.5 w-full bg-[var(--cream)]">
-                      <div
-                        className="h-full bg-[var(--teal)] transition-all"
-                        style={{ width: progress + "%" }}
-                      />
-                    </div>
-
-                    <div className="mt-5 flex flex-wrap gap-x-5 gap-y-2 text-xs text-[var(--muted)]">
-                      <span>{openTasks.length} still to do</span>
-                      <span>{notes.length} saved notes</span>
-                      <span>
-                        {reminders.filter((reminder) => !reminder.done).length}{" "}
-                        reminders open
-                      </span>
-                    </div>
-                  </section>
-
-                  <section className="border border-[var(--ink)]/10 bg-white p-5 sm:p-7">
-                    <div className="flex items-center justify-between gap-4">
-                      <div>
-                        <p className="text-xs uppercase tracking-[0.16em] text-[var(--teal)]">
-                          Your list
-                        </p>
-                        <h2
-                          className="mt-2 text-2xl text-[var(--deep-blue)]"
-                          style={{ fontFamily: "var(--heading-font)" }}
-                        >
-                          Next things to do
-                        </h2>
-                      </div>
-
-                      <button
-                        onClick={() => setSection("Tasks")}
-                        className="text-xs text-[var(--muted)] hover:text-[var(--deep-blue)]"
-                      >
-                        All tasks{" "}
-                        <ArrowRight size={13} className="ml-1 inline" />
-                      </button>
-                    </div>
-
-                    {openTasks.length ? (
-                      <div className="mt-5 divide-y divide-[var(--ink)]/10">
-                        {openTasks.slice(0, 4).map((task) => (
-                          <div
-                            key={task.id}
-                            className="flex items-center gap-3 py-4"
-                          >
-                            <button
-                              onClick={() =>
-                                setTasks((current) =>
-                                  current.map((item) =>
-                                    item.id === task.id
-                                      ? { ...item, done: true }
-                                      : item
-                                  )
-                                )
-                              }
-                              aria-label={"Complete " + task.title}
-                              className="text-[var(--teal)]"
-                            >
-                              <Circle size={18} strokeWidth={1.6} />
-                            </button>
-
-                            <div className="min-w-0 flex-1">
-                              <p className="truncate text-sm">{task.title}</p>
-                              {task.dueDate && (
-                                <p className="mt-1 text-xs text-[var(--muted)]">
-                                  Due {task.dueDate}
-                                </p>
-                              )}
-                            </div>
-
-                            <span
-                              className={
-                                "text-[10px] uppercase tracking-wider " +
-                                (task.priority === "high"
-                                  ? "text-[var(--teal)]"
-                                  : "text-[var(--muted)]")
-                              }
-                            >
-                              {task.priority === "high"
-                                ? "Priority"
-                                : task.priority === "low"
-                                  ? "Later"
-                                  : "Normal"}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="mt-5 border-t border-[var(--ink)]/10 py-6 text-sm leading-6 text-[var(--muted)]">
-                        Your list is clear. Add one task when you are ready to
-                        begin.
-                      </p>
-                    )}
-
-                    <form
-                      onSubmit={taskForm}
-                      className="mt-4 flex gap-2 border-t border-[var(--ink)]/10 pt-5"
-                    >
-                      <input
-                        value={taskTitle}
-                        onChange={(event) => setTaskTitle(event.target.value)}
-                        placeholder="Add one thing to do…"
-                        className="min-w-0 flex-1 bg-[var(--cream)]/60 px-3 py-3 text-sm outline-none focus:ring-1 focus:ring-[var(--teal)]"
-                      />
-
-                      <button
-                        className="grid h-11 w-11 shrink-0 place-items-center bg-[var(--deep-blue)] text-white"
-                        aria-label="Add task"
-                      >
-                        <Plus size={18} />
-                      </button>
-                    </form>
-                  </section>
-
-                  <section className="border border-[var(--ink)]/10 bg-[var(--deep-blue)] p-5 text-white sm:p-7">
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <p className="text-xs uppercase tracking-[0.16em] text-[var(--mint)]">
-                          Focus time
-                        </p>
-
-                        <h2
-                          className="mt-2 text-2xl"
-                          style={{ fontFamily: "var(--heading-font)" }}
-                        >
-                          Give one thing your attention.
-                        </h2>
-
-                        <p className="mt-2 text-sm text-white/65">
-                          A simple 25-minute timer. No extra setup.
-                        </p>
-                      </div>
-
-                      <Clock3 size={22} className="text-[var(--mint)]" />
-                    </div>
-
-                    <div className="mt-6 flex flex-wrap items-center gap-5">
-                      <p className="font-mono text-4xl tracking-tight sm:text-5xl">
-                        {clockDisplay}
-                      </p>
-
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => {
-                            setTimerFinished(false);
-                            setTimerRunning((running) => !running);
-                          }}
-                          className="inline-flex items-center gap-2 bg-[var(--mint)] px-4 py-2.5 text-sm font-medium text-[var(--deep-blue)]"
-                        >
-                          {timerRunning ? (
-                            <Pause size={15} />
-                          ) : (
-                            <Play size={15} />
-                          )}
-                          {timerRunning ? "Pause" : "Start"}
-                        </button>
-
-                        <button
-                          onClick={() => {
-                            setTimerRunning(false);
-                            setTimerSeconds(25 * 60);
-                            setTimerFinished(false);
-                          }}
-                          className="grid h-10 w-10 place-items-center border border-white/25 text-white"
-                          aria-label="Reset timer"
-                        >
-                          <RotateCcw size={15} />
-                        </button>
-                      </div>
-                    </div>
-
-                    {timerFinished && (
-                      <p className="mt-4 text-sm text-[var(--mint)]">
-                        Focus session complete. Take a short break if you need
-                        one.
-                      </p>
-                    )}
-                  </section>
+              <div className="space-y-7">
+                <div>
+                  <p className="text-sm text-[var(--teal)]">YOUR OVERVIEW</p>
+                  <h2 className="mt-2 max-w-2xl font-[var(--heading-font)] text-4xl leading-tight sm:text-5xl">
+                    {pageTitle.Overview}
+                  </h2>
+                  <p className="mt-3 max-w-xl text-sm leading-6 text-[var(--muted)]">
+                    See what needs attention, choose your next step, and make
+                    progress at your own pace.
+                  </p>
                 </div>
 
-                <div className="space-y-6">
-                  <section className="border border-[var(--ink)]/10 bg-white p-5 sm:p-7">
-                    <div className="flex items-center gap-3">
-                      <span className="grid h-9 w-9 place-items-center bg-[var(--cream)] text-[var(--deep-blue)]">
-                        <Sparkles size={17} />
-                      </span>
+                <div className="grid gap-4 sm:grid-cols-3">
+                  <StatCard
+                    label="Tasks remaining"
+                    value={remainingTasks.length}
+                    detail={`${completedTasks} completed`}
+                  />
+                  <StatCard
+                    label="Reminders pending"
+                    value={upcomingReminders}
+                    detail="Not marked complete"
+                  />
+                  <StatCard
+                    label="Notes saved"
+                    value={notes.length}
+                    detail="Ideas and thoughts"
+                  />
+                </div>
 
+                <div className="grid gap-5 xl:grid-cols-[1.3fr_0.7fr]">
+                  <div className="rounded-2xl border border-[var(--deep-blue)]/10 p-5 sm:p-6">
+                    <div className="flex items-center justify-between gap-3">
                       <div>
-                        <p className="text-xs uppercase tracking-[0.16em] text-[var(--teal)]">
-                          Quick assistant
+                        <p className="text-xs font-semibold uppercase tracking-wider text-[var(--teal)]">
+                          Suggested next step
                         </p>
-                        <h2
-                          className="mt-1 text-xl text-[var(--deep-blue)]"
-                          style={{ fontFamily: "var(--heading-font)" }}
-                        >
-                          Say what you need.
-                        </h2>
+                        <h3 className="mt-2 text-xl font-semibold">
+                          {nextTask ? nextTask.title : "Choose something to do"}
+                        </h3>
                       </div>
+                      <Sparkles
+                        className="shrink-0 text-[var(--teal)]"
+                        size={23}
+                      />
                     </div>
 
-                    <p className="mt-4 text-sm leading-6 text-[var(--muted)]">
-                      Try adding a task or saving an idea in plain language.
+                    {nextTask ? (
+                      <>
+                        <p className="mt-3 text-sm leading-6 text-[var(--muted)]">
+                          This suggestion considers task priority and deadlines.
+                          It is a guide, not a strict schedule.
+                        </p>
+                        <div className="mt-4 flex flex-wrap items-center gap-2 text-xs">
+                          <span className="rounded-full bg-[var(--deep-blue)]/5 px-3 py-1.5">
+                            {nextTask.priority === "high"
+                              ? "High priority"
+                              : nextTask.priority === "normal"
+                                ? "Normal priority"
+                                : "Low priority"}
+                          </span>
+                          {nextTask.dueDate && (
+                            <span className="rounded-full bg-[var(--deep-blue)]/5 px-3 py-1.5">
+                              Due {formatDate(nextTask.dueDate)}
+                            </span>
+                          )}
+                        </div>
+                        <button
+                          onClick={() => toggleTask(nextTask.id)}
+                          className="mt-5 inline-flex items-center gap-2 rounded-xl bg-[var(--deep-blue)] px-4 py-3 text-sm text-white transition hover:opacity-90"
+                        >
+                          <Check size={17} />
+                          Mark as completed
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        onClick={() => changeSection("Tasks")}
+                        className="mt-4 inline-flex items-center gap-2 rounded-xl bg-[var(--deep-blue)] px-4 py-3 text-sm text-white"
+                      >
+                        Add a task <ArrowRight size={16} />
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="rounded-2xl bg-[var(--deep-blue)] p-5 text-white sm:p-6">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-[var(--mint)]">
+                      Quick assistant
+                    </p>
+                    <h3 className="mt-2 text-xl font-semibold">
+                      Get something out of your head.
+                    </h3>
+                    <p className="mt-2 text-sm leading-6 text-white/70">
+                      Add a task or save an idea without searching through
+                      different sections.
                     </p>
 
                     <form
-                      onSubmit={runAssistant}
-                      className="mt-5 flex gap-2"
+                      onSubmit={(event) => {
+                        handleAssistant(event);
+                      }}
+                      className="mt-5"
                     >
                       <input
                         value={assistantInput}
                         onChange={(event) =>
                           setAssistantInput(event.target.value)
                         }
-                        placeholder="Add task: read chapter one"
-                        className="min-w-0 flex-1 border border-[var(--ink)]/10 px-3 py-3 text-sm outline-none focus:border-[var(--teal)]"
+                        placeholder="Add task: Finish my assignment"
+                        className="w-full rounded-xl border border-white/20 bg-white/10 px-3 py-3 text-sm text-white outline-none placeholder:text-white/50 focus:border-[var(--mint)]"
                       />
-
                       <button
-                        className="grid h-11 w-11 shrink-0 place-items-center bg-[var(--deep-blue)] text-white"
-                        aria-label="Send command"
+                        type="submit"
+                        className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--mint)] px-4 py-3 text-sm font-medium text-[var(--ink)]"
                       >
                         <Send size={16} />
+                        Send to assistant
                       </button>
                     </form>
-
-                    <p className="mt-4 border-l-2 border-[var(--mint)] pl-3 text-xs leading-5 text-[var(--muted)]">
+                    <p className="mt-3 text-xs leading-5 text-white/70">
                       {assistantReply}
                     </p>
+                  </div>
+                </div>
 
+                <div className="rounded-2xl border border-[var(--deep-blue)]/10 p-5 sm:p-6">
+                  <div className="flex items-center justify-between gap-3">
+                    <h3 className="text-lg font-semibold">Your tasks</h3>
                     <button
-                      onClick={() => setSection("Assistant")}
-                      className="mt-4 text-xs text-[var(--deep-blue)] underline underline-offset-4"
+                      onClick={() => changeSection("Tasks")}
+                      className="text-sm text-[var(--teal)] hover:underline"
                     >
-                      Open assistant
+                      All tasks
                     </button>
-                  </section>
+                  </div>
 
-                  <section className="border border-[var(--ink)]/10 bg-white p-5 sm:p-7">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-xs uppercase tracking-[0.16em] text-[var(--teal)]">
-                          Coming up
-                        </p>
-                        <h2
-                          className="mt-2 text-2xl text-[var(--deep-blue)]"
-                          style={{ fontFamily: "var(--heading-font)" }}
-                        >
-                          Reminders
-                        </h2>
-                      </div>
-
-                      <Bell size={19} className="text-[var(--muted)]" />
-                    </div>
-
-                    {upcomingReminders.length ? (
-                      <div className="mt-4 divide-y divide-[var(--ink)]/10">
-                        {upcomingReminders.map((reminder) => (
-                          <div key={reminder.id} className="py-3">
-                            <p className="text-sm">{reminder.title}</p>
-                            <p className="mt-1 text-xs text-[var(--muted)]">
-                              {formatDate(reminder.at)}
-                            </p>
-                          </div>
-                        ))}
-                      </div>
+                  <div className="mt-4">
+                    {tasks.length === 0 ? (
+                      <EmptyState message="Your task list is empty. Add your first task when you're ready." />
                     ) : (
-                      <p className="mt-4 text-sm leading-6 text-[var(--muted)]">
-                        No reminders yet. Add a date and time when something
-                        needs your attention.
-                      </p>
+                      tasks.slice(0, 5).map((task) => (
+                        <TaskRow
+                          key={task.id}
+                          task={task}
+                          onToggle={toggleTask}
+                          onDelete={deleteTask}
+                        />
+                      ))
                     )}
+                  </div>
+                </div>
 
+                <div className="rounded-2xl border border-[var(--deep-blue)]/10 p-5 sm:p-6">
+                  <div className="flex items-center justify-between gap-3">
+                    <h3 className="text-lg font-semibold">Next reminders</h3>
                     <button
-                      onClick={() => setSection("Reminders")}
-                      className="mt-4 text-xs text-[var(--deep-blue)] underline underline-offset-4"
+                      onClick={() => changeSection("Reminders")}
+                      className="text-sm text-[var(--teal)] hover:underline"
                     >
-                      Manage reminders
+                      All reminders
                     </button>
-                  </section>
+                  </div>
 
-                  <section className="border border-[var(--ink)]/10 bg-white p-5 sm:p-7">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-xs uppercase tracking-[0.16em] text-[var(--teal)]">
-                          Keep the thought
-                        </p>
-                        <h2
-                          className="mt-2 text-2xl text-[var(--deep-blue)]"
-                          style={{ fontFamily: "var(--heading-font)" }}
-                        >
-                          Notes
-                        </h2>
-                      </div>
-
-                      <FileText size={19} className="text-[var(--muted)]" />
-                    </div>
-
-                    {notes.length ? (
-                      <div className="mt-4 border-t border-[var(--ink)]/10 pt-4">
-                        <p className="text-sm font-medium">{notes[0].title}</p>
-                        <p className="mt-1 line-clamp-3 whitespace-pre-wrap text-xs leading-5 text-[var(--muted)]">
-                          {notes[0].body}
-                        </p>
-                      </div>
+                  <div className="mt-4">
+                    {reminders.filter((reminder) => !reminder.done).length ===
+                    0 ? (
+                      <EmptyState message="No pending reminders. Add one for something you don't want to forget." />
                     ) : (
-                      <p className="mt-4 text-sm leading-6 text-[var(--muted)]">
-                        Save an idea before it slips away.
-                      </p>
+                      reminders
+                        .filter((reminder) => !reminder.done)
+                        .slice(0, 4)
+                        .map((reminder) => (
+                          <ReminderRow
+                            key={reminder.id}
+                            reminder={reminder}
+                            onToggle={toggleReminder}
+                            onDelete={deleteReminder}
+                          />
+                        ))
                     )}
-
-                    <button
-                      onClick={() => setSection("Notes")}
-                      className="mt-4 text-xs text-[var(--deep-blue)] underline underline-offset-4"
-                    >
-                      Open notes
-                    </button>
-                  </section>
+                  </div>
                 </div>
               </div>
             )}
 
             {section === "Tasks" && (
-              <div className="max-w-4xl border border-[var(--ink)]/10 bg-white p-5 sm:p-8">
+              <div className="space-y-6">
+                <PageIntro
+                  eyebrow="YOUR TASK LIST"
+                  title={pageTitle.Tasks}
+                  description="Add deadlines and priorities. Momentum uses them to suggest what you might want to do next."
+                />
+
                 <form
-                  onSubmit={taskForm}
-                  className="grid gap-3 border-b border-[var(--ink)]/10 pb-6 md:grid-cols-[minmax(0,1fr)_140px_160px_auto]"
+                  onSubmit={addTask}
+                  className="grid gap-3 rounded-2xl border border-[var(--deep-blue)]/10 p-4 sm:grid-cols-2 sm:p-5"
                 >
                   <input
                     value={taskTitle}
                     onChange={(event) => setTaskTitle(event.target.value)}
                     placeholder="What needs to get done?"
-                    className="min-w-0 border border-[var(--ink)]/10 px-3 py-3 text-sm outline-none focus:border-[var(--teal)]"
+                    required
+                    className="min-w-0 rounded-xl border border-[var(--deep-blue)]/15 px-3 py-3 text-sm outline-none focus:border-[var(--teal)] sm:col-span-2"
                   />
 
                   <select
@@ -932,275 +937,278 @@ export default function DashboardPage() {
                     onChange={(event) =>
                       setTaskPriority(event.target.value as Priority)
                     }
-                    className="border border-[var(--ink)]/10 bg-white px-3 py-3 text-sm"
+                    className="rounded-xl border border-[var(--deep-blue)]/15 bg-white px-3 py-3 text-sm outline-none focus:border-[var(--teal)]"
                   >
-                    <option value="high">Priority</option>
-                    <option value="normal">Normal</option>
-                    <option value="low">Can wait</option>
+                    <option value="high">High priority</option>
+                    <option value="normal">Normal priority</option>
+                    <option value="low">Low priority</option>
                   </select>
 
                   <input
                     type="date"
                     value={taskDueDate}
                     onChange={(event) => setTaskDueDate(event.target.value)}
-                    aria-label="Task due date"
-                    className="border border-[var(--ink)]/10 px-3 py-3 text-sm"
+                    className="rounded-xl border border-[var(--deep-blue)]/15 bg-white px-3 py-3 text-sm outline-none focus:border-[var(--teal)]"
                   />
 
-                  <button className="inline-flex items-center justify-center gap-2 bg-[var(--deep-blue)] px-4 py-3 text-sm text-white">
-                    <Plus size={16} /> Add
+                  <button
+                    type="submit"
+                    className="flex items-center justify-center gap-2 rounded-xl bg-[var(--deep-blue)] px-4 py-3 text-sm text-white transition hover:opacity-90 sm:col-span-2"
+                  >
+                    <Plus size={17} />
+                    Add task
                   </button>
                 </form>
 
-                <div className="mt-2 divide-y divide-[var(--ink)]/10">
-                  {tasks.length ? (
-                    tasks.map((task) => (
-                      <div
-                        key={task.id}
-                        className="flex items-start gap-3 py-5"
-                      >
-                        <button
-                          onClick={() =>
-                            setTasks((current) =>
-                              current.map((item) =>
-                                item.id === task.id
-                                  ? { ...item, done: !item.done }
-                                  : item
-                              )
-                            )
-                          }
-                          aria-label={
-                            task.done
-                              ? "Mark task incomplete"
-                              : "Mark task complete"
-                          }
-                          className={
-                            "mt-0.5 " +
-                            (task.done
-                              ? "text-[var(--teal)]"
-                              : "text-[var(--muted)]")
-                          }
-                        >
-                          {task.done ? (
-                            <CheckCircle2 size={19} />
-                          ) : (
-                            <Circle size={19} />
-                          )}
-                        </button>
+                <div className="flex items-center gap-2 rounded-xl border border-[var(--deep-blue)]/10 px-3">
+                  <Search size={17} className="text-[var(--muted)]" />
+                  <input
+                    value={searchText}
+                    onChange={(event) => setSearchText(event.target.value)}
+                    placeholder="Find a task..."
+                    className="w-full bg-transparent py-3 text-sm outline-none"
+                  />
+                </div>
 
-                        <div className="min-w-0 flex-1">
-                          <p
-                            className={
-                              "text-sm " +
-                              (task.done
-                                ? "text-[var(--muted)] line-through"
-                                : "text-[var(--ink)]")
-                            }
-                          >
-                            {task.title}
-                          </p>
-
-                          <div className="mt-2 flex flex-wrap gap-3 text-[10px] uppercase tracking-wider text-[var(--muted)]">
-                            <span>
-                              {task.priority === "high"
-                                ? "Priority"
-                                : task.priority === "low"
-                                  ? "Can wait"
-                                  : "Normal"}
-                            </span>
-
-                            {task.dueDate && <span>Due {task.dueDate}</span>}
-                          </div>
-                        </div>
-
-                        <button
-                          onClick={() =>
-                            setTasks((current) =>
-                              current.filter((item) => item.id !== task.id)
-                            )
-                          }
-                          aria-label={"Delete " + task.title}
-                          className="p-1 text-[var(--muted)] hover:text-[var(--deep-blue)]"
-                        >
-                          <Trash2 size={15} />
-                        </button>
-                      </div>
-                    ))
+                <div className="rounded-2xl border border-[var(--deep-blue)]/10 p-4 sm:p-5">
+                  {filteredTasks.length === 0 ? (
+                    <EmptyState message="No matching tasks. Add a task or try a different search." />
                   ) : (
-                    <p className="py-12 text-center text-sm text-[var(--muted)]">
-                      No tasks yet. Add the first one above.
-                    </p>
+                    filteredTasks.map((task) => (
+                      <TaskRow
+                        key={task.id}
+                        task={task}
+                        onToggle={toggleTask}
+                        onDelete={deleteTask}
+                      />
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+
+            {section === "Reminders" && (
+              <div className="space-y-6">
+                <PageIntro
+                  eyebrow="YOUR REMINDERS"
+                  title={pageTitle.Reminders}
+                  description="Choose a future date and time. Keep this dashboard open to check for due reminders and show browser notifications."
+                />
+
+                <div className="rounded-2xl border border-[var(--deep-blue)]/10 p-5">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <h3 className="font-semibold">Browser notifications</h3>
+                      <p className="mt-1 text-sm leading-6 text-[var(--muted)]">
+                        {notificationPermission === "granted"
+                          ? "Permission granted. You can receive browser notifications while reminders are checked."
+                          : notificationPermission === "denied"
+                            ? "Permission is blocked. Change the notification permission in your browser's site settings."
+                            : notificationPermission === "unsupported"
+                              ? "This browser does not support the Notification API."
+                              : "Enable notifications and allow the browser permission request."}
+                      </p>
+                    </div>
+
+                    <button
+                      onClick={enableNotifications}
+                      className="rounded-xl border border-[var(--deep-blue)]/15 px-4 py-2.5 text-sm hover:bg-[var(--deep-blue)]/5"
+                    >
+                      {notificationPermission === "granted"
+                        ? "Test notification"
+                        : "Enable"}
+                    </button>
+                  </div>
+                </div>
+
+                <form
+                  onSubmit={addReminder}
+                  className="grid gap-3 rounded-2xl border border-[var(--deep-blue)]/10 p-4 sm:grid-cols-2 sm:p-5"
+                >
+                  <input
+                    value={reminderTitle}
+                    onChange={(event) => setReminderTitle(event.target.value)}
+                    placeholder="What should you be reminded about?"
+                    required
+                    className="rounded-xl border border-[var(--deep-blue)]/15 px-3 py-3 text-sm outline-none focus:border-[var(--teal)] sm:col-span-2"
+                  />
+
+                  <input
+                    type="datetime-local"
+                    value={reminderAt}
+                    onChange={(event) => setReminderAt(event.target.value)}
+                    min={new Date(Date.now() - new Date().getTimezoneOffset() * 60000)
+                      .toISOString()
+                      .slice(0, 16)}
+                    required
+                    className="min-w-0 rounded-xl border border-[var(--deep-blue)]/15 bg-white px-3 py-3 text-sm outline-none focus:border-[var(--teal)]"
+                  />
+
+                  <button
+                    type="submit"
+                    className="flex items-center justify-center gap-2 rounded-xl bg-[var(--deep-blue)] px-4 py-3 text-sm text-white"
+                  >
+                    <Plus size={17} />
+                    Save reminder
+                  </button>
+                </form>
+
+                <div className="rounded-2xl border border-[var(--deep-blue)]/10 p-4 sm:p-5">
+                  {reminders.length === 0 ? (
+                    <EmptyState message="No reminders yet. Add one with a date and time." />
+                  ) : (
+                    [...reminders]
+                      .sort((a, b) => {
+                        if (a.done !== b.done) return a.done ? 1 : -1;
+                        return (
+                          new Date(a.at).getTime() -
+                          new Date(b.at).getTime()
+                        );
+                      })
+                      .map((reminder) => (
+                        <ReminderRow
+                          key={reminder.id}
+                          reminder={reminder}
+                          onToggle={toggleReminder}
+                          onDelete={deleteReminder}
+                        />
+                      ))
                   )}
                 </div>
               </div>
             )}
 
             {section === "Assistant" && (
-              <div className="grid max-w-5xl gap-6 lg:grid-cols-[minmax(0,1fr)_280px]">
-                <section className="border border-[var(--ink)]/10 bg-white p-5 sm:p-8">
-                  <div className="flex items-start gap-4 border-b border-[var(--ink)]/10 pb-6">
-                    <span className="grid h-11 w-11 place-items-center bg-[var(--deep-blue)] text-white">
-                      <Command size={20} />
-                    </span>
+              <div className="mx-auto max-w-3xl space-y-6">
+                <PageIntro
+                  eyebrow="MOMENTUM ASSISTANT"
+                  title={pageTitle.Assistant}
+                  description="This assistant uses simple programmed rules to handle supported commands. It does not rely on an AI API."
+                />
 
-                    <div>
-                      <h2
-                        className="text-2xl text-[var(--deep-blue)]"
-                        style={{ fontFamily: "var(--heading-font)" }}
-                      >
-                        Momentum assistant
-                      </h2>
-
-                      <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
-                        A small rule-based helper. It handles commands it
-                        recognizes and tells you when it needs more detail.
-                      </p>
-                    </div>
+                <div className="rounded-2xl bg-[var(--deep-blue)] p-5 text-white sm:p-7">
+                  <div className="flex items-center gap-3">
+                    <Sparkles size={22} className="text-[var(--mint)]" />
+                    <h3 className="text-lg font-semibold">What can I help with?</h3>
                   </div>
 
-                  <div className="mt-6 border-l-2 border-[var(--mint)] bg-[var(--cream)]/60 px-4 py-4 text-sm leading-6">
+                  <p className="mt-4 text-sm leading-7 text-white/80">
                     {assistantReply}
-                  </div>
+                  </p>
 
-                  {confirmClear && (
-                    <div className="mt-4 border border-[var(--ink)]/15 p-4">
-                      <p className="text-sm">
-                        Delete all {tasks.length} tasks? This cannot be undone.
-                      </p>
-
-                      <div className="mt-4 flex gap-2">
-                        <button
-                          onClick={() => {
-                            setTasks([]);
-                            setConfirmClear(false);
-                            setAssistantReply(
-                              "All tasks have been removed from this device."
-                            );
-                          }}
-                          className="bg-[var(--deep-blue)] px-4 py-2 text-xs text-white"
-                        >
-                          Yes, delete tasks
-                        </button>
-
-                        <button
-                          onClick={() => {
-                            setConfirmClear(false);
-                            setAssistantReply("Nothing was deleted.");
-                          }}
-                          className="border border-[var(--ink)]/15 px-4 py-2 text-xs"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    </div>
-                  )}
-
-                  <form
-                    onSubmit={runAssistant}
-                    className="mt-6 flex gap-2"
-                  >
+                  <form onSubmit={handleAssistant} className="mt-6 flex gap-2">
                     <input
                       value={assistantInput}
                       onChange={(event) =>
                         setAssistantInput(event.target.value)
                       }
-                      placeholder="Type a command…"
-                      className="min-w-0 flex-1 border border-[var(--ink)]/15 px-4 py-3 text-sm outline-none focus:border-[var(--teal)]"
+                      placeholder="Type a supported command..."
+                      className="min-w-0 flex-1 rounded-xl border border-white/20 bg-white/10 px-3 py-3 text-sm text-white outline-none placeholder:text-white/50 focus:border-[var(--mint)]"
                     />
-
-                    <button className="inline-flex items-center gap-2 bg-[var(--deep-blue)] px-4 py-3 text-sm text-white">
-                      <Send size={16} />
-                      <span className="hidden sm:inline">Send</span>
+                    <button
+                      type="submit"
+                      aria-label="Send command"
+                      className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[var(--mint)] text-[var(--ink)]"
+                    >
+                      <Send size={18} />
                     </button>
                   </form>
-                </section>
+                </div>
 
-                <aside className="border border-[var(--ink)]/10 bg-white p-5 sm:p-6">
-                  <p className="text-xs uppercase tracking-[0.16em] text-[var(--teal)]">
-                    Try saying
-                  </p>
-
+                <div className="rounded-2xl border border-[var(--deep-blue)]/10 p-5 sm:p-6">
+                  <h3 className="font-semibold">Commands to try</h3>
                   <div className="mt-4 space-y-3">
                     {[
-                      "Add task: Finish my report",
+                      "Add task: Finish my assignment",
                       "Show my tasks",
+                      "What should I do next?",
                       "Save this idea: a budgeting app",
-                      "I finished Finish my report",
-                      "Delete all tasks",
-                    ].map((example) => (
+                    ].map((command) => (
                       <button
-                        key={example}
-                        onClick={() => setAssistantInput(example)}
-                        className="block w-full border-b border-[var(--ink)]/10 pb-3 text-left text-xs leading-5 text-[var(--muted)] hover:text-[var(--deep-blue)]"
+                        key={command}
+                        onClick={() => setAssistantInput(command)}
+                        className="block w-full rounded-xl border border-[var(--deep-blue)]/10 px-3 py-3 text-left text-sm transition hover:bg-[var(--deep-blue)]/5"
                       >
-                        {example}
+                        {command}
                       </button>
                     ))}
                   </div>
-
-                  <p className="mt-5 text-xs leading-5 text-[var(--muted)]">
-                    This assistant uses programmed rules. It does not send your
-                    text to an AI service.
-                  </p>
-                </aside>
+                </div>
               </div>
             )}
 
             {section === "Notes" && (
-              <div className="grid gap-6 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
-                <form
-                  onSubmit={noteForm}
-                  className="h-fit border border-[var(--ink)]/10 bg-white p-5 sm:p-7"
-                >
-                  <p className="text-xs uppercase tracking-[0.16em] text-[var(--teal)]">
-                    New note
-                  </p>
+              <div className="space-y-6">
+                <PageIntro
+                  eyebrow="YOUR NOTES"
+                  title={pageTitle.Notes}
+                  description="Save ideas, thoughts, and information you want to return to later."
+                />
 
+                <form
+                  onSubmit={saveNote}
+                  className="space-y-3 rounded-2xl border border-[var(--deep-blue)]/10 p-4 sm:p-5"
+                >
                   <input
                     value={noteTitle}
                     onChange={(event) => setNoteTitle(event.target.value)}
-                    placeholder="Give it a title (optional)"
-                    className="mt-5 w-full border-b border-[var(--ink)]/15 py-3 text-sm outline-none focus:border-[var(--teal)]"
+                    placeholder="Note title"
+                    required
+                    className="w-full rounded-xl border border-[var(--deep-blue)]/15 px-3 py-3 text-sm outline-none focus:border-[var(--teal)]"
                   />
 
                   <textarea
                     value={noteBody}
                     onChange={(event) => setNoteBody(event.target.value)}
-                    placeholder="Write an idea, thought, or something to remember…"
-                    rows={7}
-                    className="mt-4 w-full resize-y bg-[var(--cream)]/50 p-4 text-sm leading-6 outline-none focus:ring-1 focus:ring-[var(--teal)]"
+                    placeholder="Write your idea here..."
+                    required
+                    rows={5}
+                    className="w-full resize-y rounded-xl border border-[var(--deep-blue)]/15 px-3 py-3 text-sm leading-6 outline-none focus:border-[var(--teal)]"
                   />
 
-                  <button className="mt-4 inline-flex items-center gap-2 bg-[var(--deep-blue)] px-5 py-3 text-sm text-white">
-                    <Plus size={16} /> Save note
-                  </button>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="submit"
+                      className="rounded-xl bg-[var(--deep-blue)] px-4 py-3 text-sm text-white"
+                    >
+                      {editingNoteId ? "Update note" : "Save note"}
+                    </button>
+
+                    {editingNoteId && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingNoteId(null);
+                          setNoteTitle("");
+                          setNoteBody("");
+                        }}
+                        className="rounded-xl border border-[var(--deep-blue)]/15 px-4 py-3 text-sm"
+                      >
+                        Cancel
+                      </button>
+                    )}
+                  </div>
                 </form>
 
-                <div className="grid content-start gap-3 sm:grid-cols-2">
-                  {notes.length ? (
+                <div className="grid gap-4 md:grid-cols-2">
+                  {notes.length === 0 ? (
+                    <div className="md:col-span-2">
+                      <EmptyState message="No notes saved yet. Your first idea can start here." />
+                    </div>
+                  ) : (
                     notes.map((note) => (
                       <article
                         key={note.id}
-                        className="border border-[var(--ink)]/10 bg-white p-5"
+                        className="rounded-2xl border border-[var(--deep-blue)]/10 p-5"
                       >
                         <div className="flex items-start justify-between gap-3">
-                          <h2
-                            className="text-lg text-[var(--deep-blue)]"
-                            style={{ fontFamily: "var(--heading-font)" }}
-                          >
-                            {note.title}
-                          </h2>
-
+                          <h3 className="font-semibold">{note.title}</h3>
                           <button
-                            onClick={() =>
-                              setNotes((current) =>
-                                current.filter((item) => item.id !== note.id)
-                              )
-                            }
-                            aria-label={"Delete " + note.title}
-                            className="text-[var(--muted)]"
+                            onClick={() => deleteNote(note.id)}
+                            aria-label={`Delete ${note.title}`}
+                            className="rounded-lg p-1.5 text-[var(--muted)] hover:bg-red-50 hover:text-red-600"
                           >
-                            <Trash2 size={14} />
+                            <Trash2 size={16} />
                           </button>
                         </div>
 
@@ -1208,165 +1216,206 @@ export default function DashboardPage() {
                           {note.body}
                         </p>
 
-                        <p className="mt-4 text-[10px] uppercase tracking-wider text-[var(--muted)]">
-                          {new Date(note.updatedAt).toLocaleDateString()}
-                        </p>
+                        <div className="mt-5 flex items-center justify-between gap-3 border-t border-[var(--deep-blue)]/10 pt-3">
+                          <span className="text-xs text-[var(--muted)]">
+                            Updated {formatDate(note.updatedAt)}
+                          </span>
+                          <button
+                            onClick={() => editNote(note)}
+                            className="text-sm text-[var(--teal)] hover:underline"
+                          >
+                            Edit note
+                          </button>
+                        </div>
                       </article>
                     ))
-                  ) : (
-                    <p className="border border-dashed border-[var(--ink)]/20 p-8 text-sm leading-6 text-[var(--muted)] sm:col-span-2">
-                      Your saved notes will appear here. They stay in this
-                      browser on this device.
-                    </p>
                   )}
                 </div>
               </div>
             )}
-
-            {section === "Reminders" && (
-              <div className="grid max-w-5xl gap-6 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
-                <form
-                  onSubmit={reminderForm}
-                  className="h-fit border border-[var(--ink)]/10 bg-white p-5 sm:p-7"
-                >
-                  <p className="text-xs uppercase tracking-[0.16em] text-[var(--teal)]">
-                    Create a reminder
-                  </p>
-
-                  <label className="mt-5 block text-xs text-[var(--muted)]">
-                    What should you remember?
-                  </label>
-
-                  <input
-                    value={reminderTitle}
-                    onChange={(event) => setReminderTitle(event.target.value)}
-                    placeholder="Call Mum, take a break…"
-                    className="mt-2 w-full border border-[var(--ink)]/10 px-3 py-3 text-sm outline-none focus:border-[var(--teal)]"
-                  />
-
-                  <label className="mt-5 block text-xs text-[var(--muted)]">
-                    Date and time
-                  </label>
-
-                  <input
-                    type="datetime-local"
-                    value={reminderAt}
-                    onChange={(event) => setReminderAt(event.target.value)}
-                    className="mt-2 w-full border border-[var(--ink)]/10 px-3 py-3 text-sm outline-none focus:border-[var(--teal)]"
-                  />
-
-                  <button className="mt-5 inline-flex items-center gap-2 bg-[var(--deep-blue)] px-5 py-3 text-sm text-white">
-                    <Bell size={15} /> Save reminder
-                  </button>
-
-                  <p className="mt-4 text-xs leading-5 text-[var(--muted)]">
-                    These reminders are saved in your browser. This first
-                    version does not send notifications while the website is
-                    closed.
-                  </p>
-                </form>
-
-                <section className="border border-[var(--ink)]/10 bg-white p-5 sm:p-7">
-                  <div className="flex items-center justify-between border-b border-[var(--ink)]/10 pb-4">
-                    <h2
-                      className="text-2xl text-[var(--deep-blue)]"
-                      style={{ fontFamily: "var(--heading-font)" }}
-                    >
-                      Your reminders
-                    </h2>
-
-                    <span className="text-xs text-[var(--muted)]">
-                      {reminders.filter((reminder) => !reminder.done).length}{" "}
-                      open
-                    </span>
-                  </div>
-
-                  <div className="divide-y divide-[var(--ink)]/10">
-                    {reminders.length ? (
-                      [...reminders]
-                        .sort((a, b) => a.at.localeCompare(b.at))
-                        .map((reminder) => (
-                          <div
-                            key={reminder.id}
-                            className="flex items-start gap-3 py-5"
-                          >
-                            <button
-                              onClick={() =>
-                                setReminders((current) =>
-                                  current.map((item) =>
-                                    item.id === reminder.id
-                                      ? { ...item, done: !item.done }
-                                      : item
-                                  )
-                                )
-                              }
-                              aria-label={
-                                reminder.done
-                                  ? "Reopen reminder"
-                                  : "Complete reminder"
-                              }
-                              className={
-                                "mt-0.5 " +
-                                (reminder.done
-                                  ? "text-[var(--teal)]"
-                                  : "text-[var(--muted)]")
-                              }
-                            >
-                              {reminder.done ? (
-                                <CheckCircle2 size={18} />
-                              ) : (
-                                <Circle size={18} />
-                              )}
-                            </button>
-
-                            <div className="min-w-0 flex-1">
-                              <p
-                                className={
-                                  "text-sm " +
-                                  (reminder.done
-                                    ? "line-through text-[var(--muted)]"
-                                    : "")
-                                }
-                              >
-                                {reminder.title}
-                              </p>
-
-                              <p className="mt-1 text-xs text-[var(--muted)]">
-                                {formatDate(reminder.at)}
-                              </p>
-                            </div>
-
-                            <button
-                              onClick={() =>
-                                setReminders((current) =>
-                                  current.filter(
-                                    (item) => item.id !== reminder.id
-                                  )
-                                )
-                              }
-                              aria-label={"Delete " + reminder.title}
-                              className="text-[var(--muted)]"
-                            >
-                              <Trash2 size={14} />
-                            </button>
-                          </div>
-                        ))
-                    ) : (
-                      <p className="py-12 text-center text-sm text-[var(--muted)]">
-                        Nothing scheduled yet.
-                      </p>
-                    )}
-                  </div>
-                </section>
-              </div>
-            )}
-
-            <p className="mt-10 text-center text-[10px] uppercase tracking-[0.15em] text-[var(--muted)]">
-              Your workspace is saved locally on this device
-            </p>
-          </main>
+          </section>
         </div>
       </div>
+    </main>
+  );
+}
+
+function StatCard({
+  label,
+  value,
+  detail,
+}: {
+  label: string;
+  value: number;
+  detail: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-[var(--deep-blue)]/10 p-5">
+      <p className="text-sm text-[var(--muted)]">{label}</p>
+      <p className="mt-3 text-3xl font-semibold">{value}</p>
+      <p className="mt-2 text-xs text-[var(--muted)]">{detail}</p>
+    </div>
+  );
+}
+
+function PageIntro({
+  eyebrow,
+  title,
+  description,
+}: {
+  eyebrow: string;
+  title: string;
+  description: string;
+}) {
+  return (
+    <div>
+      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--teal)]">
+        {eyebrow}
+      </p>
+      <h2 className="mt-2 max-w-3xl font-[var(--heading-font)] text-4xl leading-tight sm:text-5xl">
+        {title}
+      </h2>
+      <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--muted)]">
+        {description}
+      </p>
+    </div>
+  );
+}
+
+function EmptyState({ message }: { message: string }) {
+  return (
+    <div className="py-7 text-center">
+      <p className="text-sm leading-6 text-[var(--muted)]">{message}</p>
+    </div>
+  );
+}
+
+function TaskRow({
+  task,
+  onToggle,
+  onDelete,
+}: {
+  task: Task;
+  onToggle: (id: string) => void;
+  onDelete: (id: string) => void;
+}) {
+  const overdue =
+    !task.done &&
+    !!task.dueDate &&
+    new Date(task.dueDate).getTime() <
+      new Date(new Date().toDateString()).getTime();
+
+  return (
+    <div className="flex items-start gap-3 border-b border-[var(--deep-blue)]/10 py-4 last:border-b-0">
+      <button
+        onClick={() => onToggle(task.id)}
+        aria-label={task.done ? "Mark task incomplete" : "Complete task"}
+        className="mt-0.5 shrink-0 text-[var(--teal)]"
+      >
+        {task.done ? <CheckCircle2 size={20} /> : <Circle size={20} />}
+      </button>
+
+      <div className="min-w-0 flex-1">
+        <p
+          className={`break-words text-sm font-medium ${
+            task.done ? "text-[var(--muted)] line-through" : ""
+          }`}
+        >
+          {task.title}
+        </p>
+
+        <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-[var(--muted)]">
+          <span>
+            {task.priority === "high"
+              ? "High priority"
+              : task.priority === "normal"
+                ? "Normal priority"
+                : "Low priority"}
+          </span>
+
+          {task.dueDate && (
+            <>
+              <span>·</span>
+              <span className={overdue ? "font-medium text-red-600" : ""}>
+                {overdue ? "Overdue · " : "Due "}
+                {formatDate(task.dueDate)}
+              </span>
+            </>
+          )}
+        </div>
+      </div>
+
+      <button
+        onClick={() => onDelete(task.id)}
+        aria-label={`Delete ${task.title}`}
+        className="shrink-0 rounded-lg p-1.5 text-[var(--muted)] transition hover:bg-red-50 hover:text-red-600"
+      >
+        <Trash2 size={16} />
+      </button>
+    </div>
+  );
+}
+
+function ReminderRow({
+  reminder,
+  onToggle,
+  onDelete,
+}: {
+  reminder: Reminder;
+  onToggle: (id: string) => void;
+  onDelete: (id: string) => void;
+}) {
+  const status = reminderStatus(reminder);
+
+  return (
+    <div className="flex items-start gap-3 border-b border-[var(--deep-blue)]/10 py-4 last:border-b-0">
+      <button
+        onClick={() => onToggle(reminder.id)}
+        aria-label={
+          reminder.done ? "Reopen reminder" : "Mark reminder complete"
+        }
+        className="mt-0.5 shrink-0 text-[var(--teal)]"
+      >
+        {reminder.done ? (
+          <CheckCircle2 size={20} />
+        ) : (
+          <Clock3 size={20} />
+        )}
+      </button>
+
+      <div className="min-w-0 flex-1">
+        <p
+          className={`break-words text-sm font-medium ${
+            reminder.done ? "text-[var(--muted)] line-through" : ""
+          }`}
+        >
+          {reminder.title}
+        </p>
+
+        <p className="mt-1 text-xs text-[var(--muted)]">
+          {formatTime(reminder.at)}
+        </p>
+
+        <span
+          className={`mt-2 inline-block rounded-full px-2.5 py-1 text-xs ${
+            status === "Overdue"
+              ? "bg-red-50 text-red-700"
+              : status === "Completed"
+                ? "bg-[var(--teal)]/10 text-[var(--teal)]"
+                : "bg-[var(--deep-blue)]/5 text-[var(--muted)]"
+          }`}
+        >
+          {status}
+        </span>
+      </div>
+
+      <button
+        onClick={() => onDelete(reminder.id)}
+        aria-label={`Delete reminder ${reminder.title}`}
+        className="shrink-0 rounded-lg p-1.5 text-[var(--muted)] transition hover:bg-red-50 hover:text-red-600"
+      >
+        <Trash2 size={16} />
+      </button>
     </div>
   );
 }

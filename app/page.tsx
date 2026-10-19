@@ -1,170 +1,254 @@
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, ArrowUpRight } from "lucide-react";
+import { ArrowRight, ArrowUpRight, Play } from "lucide-react";
 
 export default function Home() {
   return (
     <div className="bg-[var(--cream)] text-[var(--ink)]">
       <div className="mx-auto max-w-6xl px-6">
-        <div className="flex h-16 items-center justify-between border-b border-[var(--ink)]/10">
-          <span className="text-xs uppercase tracking-widest font-medium">Momentum</span>
-          <div className="flex gap-6 text-xs">
-            <Link href="/how-it-works" className="text-[var(--muted)]">How it works</Link>
-            <Link href="/contact" className="text-[var(--muted)]">Contact</Link>
-          </div>
-        </div>
-
-        <div className="py-12 md:py-20 grid lg:grid-cols-12 gap-8 items-start">
-          <div className="lg:col-span-7">
-            <p className="text-xs uppercase tracking-widest text-[var(--teal)]">A better way forward</p>
-            <h1 className="mt-6 text-5xl md:text-7xl lg:text-8xl leading-[0.9] tracking-tight" style={{ fontFamily: "var(--heading-font)" }}>
-              Your day does<br />not need a<br /><span className="text-[var(--teal)]">restart.</span>
-            </h1>
-            <p className="mt-8 max-w-sm text-base leading-7 text-[var(--muted)]">
-              Sometimes you just need to figure out what is getting in the way and make one good next move.
-            </p>
-            <Link href="/fix-my-day" className="mt-10 inline-flex items-center gap-3 border-b border-[var(--ink)] pb-2 text-sm font-medium">
-              Start with Fix My Day <ArrowUpRight size={16} />
-            </Link>
-
-            <div className="mt-16 grid grid-cols-3 gap-6 border-t border-[var(--ink)]/10 pt-8">
-              <div><p className="text-xs text-[var(--muted)]">01</p><p className="mt-2 text-sm leading-6">Name the problem</p></div>
-              <div><p className="text-xs text-[var(--muted)]">02</p><p className="mt-2 text-sm leading-6">Make it smaller</p></div>
-              <div><p className="text-xs text-[var(--muted)]">03</p><p className="mt-2 text-sm leading-6">Take the next move</p></div>
-            </div>
-          </div>
-
-          <div className="lg:col-span-5 relative">
-            <div className="relative aspect-[4/5] overflow-hidden rounded-3xl bg-[var(--white)]">
-              <Image src="/images/momentum-hero.jpg" alt="Calm desk" fill className="object-cover" priority />
-            </div>
-            <div className="absolute -bottom-6 -left-6 rounded-2xl bg-[var(--white)] border border-[var(--ink)]/10 p-4 shadow-sm">
-              <p className="text-xs text-[var(--muted)]">Right now</p>
-              <p className="mt-1 text-sm">Keep moving — 2 min to start</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="bg-[var(--ink)] text-[var(--white)]">
-        <div className="mx-auto max-w-6xl px-6 py-16 md:py-24 grid md:grid-cols-12 gap-12">
-          <div className="md:col-span-5">
-            <p className="text-xs uppercase tracking-widest text-[var(--mint)]">The idea</p>
-            <h2 className="mt-6 text-4xl md:text-5xl leading-none tracking-tight" style={{ fontFamily: "var(--heading-font)" }}>
-              Less pressure.<br />More momentum.
-            </h2>
-          </div>
-          <div className="md:col-span-7 flex items-end">
-            <p className="text-xl md:text-2xl leading-8 text-[var(--white)]/70 max-w-xl">
-              You do not always need a perfect plan. You need enough clarity to know what to do next. That is what Momentum is for.
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <div className="mx-auto max-w-6xl px-6 py-16 md:py-24">
-        <div className="flex justify-between items-end">
-          <h2 className="text-3xl md:text-5xl leading-none tracking-tight" style={{ fontFamily: "var(--heading-font)" }}>
-            One problem.<br />One next move.
-          </h2>
-          <Link href="/how-it-works" className="hidden md:inline-flex items-center gap-2 text-sm">
-            See how it works <ArrowRight size={16} />
+        <header className="flex h-16 items-center justify-between border-b border-[var(--ink)]/10">
+          <Link href="/" aria-label="Momentum home">
+            <Image
+              src="/images/momentum-logo.png"
+              alt="Momentum"
+              width={180}
+              height={60}
+              className="h-auto w-36"
+              priority
+            />
           </Link>
-        </div>
 
-        <div className="mt-12 grid md:grid-cols-3 border-y border-[var(--ink)]/10 divide-y md:divide-y-0 md:divide-x divide-[var(--ink)]/10">
-          <div className="py-10 md:pr-10">
-            <div className="relative aspect-[4/3] overflow-hidden rounded-2xl bg-[var(--white)]">
-              <Image src="/images/moment-01.jpg" alt="Name the problem" fill className="object-cover" />
-            </div>
-            <p className="mt-6 text-xs text-[var(--muted)]">01</p>
-            <h3 className="mt-2 text-xl tracking-tight">Name the problem</h3>
-            <p className="mt-2 text-sm leading-6 text-[var(--muted)]">Start with what is actually getting in your way. Not everything, just the thing.</p>
-          </div>
-          <div className="py-10 md:px-10">
-            <div className="relative aspect-[4/3] overflow-hidden rounded-2xl bg-[var(--white)]">
-              <Image src="/images/moment-02.jpg" alt="Make it smaller" fill className="object-cover" />
-            </div>
-            <p className="mt-6 text-xs text-[var(--muted)]">02</p>
-            <h3 className="mt-2 text-xl tracking-tight">Make it smaller</h3>
-            <p className="mt-2 text-sm leading-6 text-[var(--muted)]">Turn the big messy thing into something you can deal with in the next hour.</p>
-          </div>
-          <div className="py-10 md:pl-10">
-            <div className="relative aspect-[4/3] overflow-hidden rounded-2xl bg-[var(--white)]">
-              <Image src="/images/moment-03.jpg" alt="Next move" fill className="object-cover" />
-            </div>
-            <p className="mt-6 text-xs text-[var(--muted)]">03</p>
-            <h3 className="mt-2 text-xl tracking-tight">Take the next move</h3>
-            <p className="mt-2 text-sm leading-6 text-[var(--muted)]">Leave with one clear action, not another list to feel guilty about.</p>
-          </div>
-        </div>
-      </div>
+          <nav className="flex items-center gap-5 text-xs sm:gap-7">
+            <a href="#demo" className="text-[var(--muted)] hover:text-[var(--deep-blue)]">
+              Demo
+            </a>
+            <Link href="/how-it-works" className="text-[var(--muted)] hover:text-[var(--deep-blue)]">
+              How it works
+            </Link>
+            <Link href="/contact" className="text-[var(--muted)] hover:text-[var(--deep-blue)]">
+              Contact
+            </Link>
+          </nav>
+        </header>
 
-      <div className="border-y border-[var(--ink)]/10 bg-[var(--white)]">
-        <div className="mx-auto max-w-6xl px-6 py-16 md:py-24 grid lg:grid-cols-12 gap-12 items-start">
-          <div className="lg:col-span-5">
-            <p className="text-xs uppercase tracking-widest text-[var(--teal)]">Maybe today looks like this</p>
-            <h2 className="mt-6 text-4xl md:text-5xl leading-none tracking-tight" style={{ fontFamily: "var(--heading-font)" }}>
-              You know you need to do something. <span className="text-[var(--muted)]">Just not what.</span>
-            </h2>
-            <div className="mt-10 relative aspect-[5/4] overflow-hidden rounded-2xl bg-[var(--cream)]">
-              <Image src="/images/today-looks.jpg" alt="Today feels" fill className="object-cover" />
+        <section className="grid items-center gap-12 py-16 md:py-24 lg:grid-cols-12">
+          <div className="lg:col-span-7">
+            <p className="text-xs uppercase tracking-[0.2em] text-[var(--teal)]">
+              Your personal workspace
+            </p>
+
+            <h1
+              className="mt-6 text-6xl leading-[0.92] tracking-tight sm:text-7xl lg:text-8xl"
+              style={{ fontFamily: "var(--heading-font)" }}
+            >
+              Make space
+              <br />
+              for what
+              <br />
+              <span className="text-[var(--teal)]">matters.</span>
+            </h1>
+
+            <p className="mt-7 max-w-md text-base leading-7 text-[var(--muted)]">
+              Bring your tasks, notes, reminders and focus time into one place.
+              Work out what needs attention and take your next step.
+            </p>
+
+            <div className="mt-9 flex flex-wrap items-center gap-5">
+              <Link
+                href="/dashboard"
+                className="inline-flex items-center gap-3 rounded-full bg-[var(--deep-blue)] px-6 py-3.5 text-sm text-white transition-colors hover:bg-[var(--ink)]"
+              >
+                Open Momentum <ArrowUpRight size={16} />
+              </Link>
+
+              <a
+                href="#demo"
+                className="inline-flex items-center gap-2 text-sm text-[var(--muted)] hover:text-[var(--deep-blue)]"
+              >
+                <Play size={15} /> Watch the demo
+              </a>
             </div>
-          </div>
-          <div className="lg:col-span-7 lg:pt-20">
-            <div className="border-t border-[var(--ink)]/10">
-              {[
-                "I have too much to do",
-                "I cannot focus",
-                "My day got messy",
-                "I do not know where to start",
-              ].map((s, i) => (
-                <div key={s} className="flex justify-between items-center border-b border-[var(--ink)]/10 py-6">
-                  <div className="flex gap-6 items-center">
-                    <span className="text-xs text-[var(--muted)]">0{i + 1}</span>
-                    <span className="text-lg">{s}</span>
-                  </div>
-                  <span className="text-[var(--muted)]">→</span>
-                </div>
-              ))}
-            </div>
-            <div className="mt-10 rounded-3xl bg-[var(--cream)] p-8 flex gap-6 items-center">
-              <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-2xl bg-[var(--white)]">
-                <Image src="/images/fix-preview.jpg" alt="Fix my day preview" fill className="object-cover" />
+
+            <div className="mt-14 grid max-w-lg grid-cols-3 gap-4 border-t border-[var(--ink)]/10 pt-6">
+              <div>
+                <p className="text-xs text-[var(--teal)]">01</p>
+                <p className="mt-2 text-sm">Organize your tasks</p>
               </div>
               <div>
-                <p className="text-sm leading-6 text-[var(--ink)]">If any of those sound familiar, Fix My Day was made for this exact moment.</p>
-                <Link href="/fix-my-day" className="mt-3 inline-flex text-sm underline underline-offset-4">Try it now</Link>
+                <p className="text-xs text-[var(--teal)]">02</p>
+                <p className="mt-2 text-sm">Keep ideas and reminders</p>
+              </div>
+              <div>
+                <p className="text-xs text-[var(--teal)]">03</p>
+                <p className="mt-2 text-sm">Focus on the next step</p>
               </div>
             </div>
           </div>
-        </div>
-      </div>
 
-      <div className="mx-auto max-w-6xl px-6 py-16 md:py-24">
-        <div className="rounded-3xl bg-[var(--teal)] p-8 md:p-14 grid md:grid-cols-12 gap-8 items-center overflow-hidden relative">
-          <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full border-[32px] border-[var(--mint)]/30 pointer-events-none" />
-          <div className="md:col-span-7 relative">
-            <h2 className="text-5xl md:text-6xl leading-none tracking-tight text-[var(--white)]" style={{ fontFamily: "var(--heading-font)" }}>
-              Let's make today feel a little lighter.
-            </h2>
-            <div className="mt-8 flex items-center justify-center gap-4">
-              <Link href="/fix-my-day" className="inline-flex items-center gap-2 rounded-full bg-[var(--ink)] px-7 py-3.5 text-sm text-[var(--white)]">
-                Fix My Day <ArrowRight size={16} />
-              </Link>
-              <span className="text-sm text-[var(--ink)]/70">Takes a moment to begin</span>
+          <div className="relative lg:col-span-5">
+            <div className="relative aspect-[4/5] overflow-hidden rounded-3xl bg-white">
+              <Image
+                src="/images/momentum-hero.jpg"
+                alt="A calm, focused workspace"
+                fill
+                className="object-cover"
+                priority
+              />
+            </div>
+
+            <div className="absolute -bottom-5 -left-3 max-w-[230px] rounded-2xl border border-[var(--ink)]/10 bg-white p-4 shadow-sm sm:-left-5">
+              <p className="text-xs text-[var(--muted)]">A small step counts</p>
+              <p className="mt-1 text-sm">You don't have to do everything at once.</p>
             </div>
           </div>
-          
+        </section>
+      </div>
+
+      <section className="bg-[var(--ink)] text-white">
+        <div className="mx-auto grid max-w-6xl gap-8 px-6 py-16 md:grid-cols-12 md:py-20">
+          <div className="md:col-span-5">
+            <p className="text-xs uppercase tracking-[0.2em] text-[var(--mint)]">
+              The idea
+            </p>
+            <h2
+              className="mt-5 text-4xl leading-none sm:text-5xl"
+              style={{ fontFamily: "var(--heading-font)" }}
+            >
+              Less scattered.
+              <br />
+              More intentional.
+            </h2>
+          </div>
+
+          <p className="text-base leading-7 text-white/70 md:col-span-7 md:pt-8 md:text-xl md:leading-8">
+            Your tasks shouldn't feel disconnected from your day. Momentum
+            brings your plans, notes and reminders together, helping you turn
+            a long list into a clearer next move.
+          </p>
+        </div>
+      </section>
+
+      <section id="demo" className="mx-auto max-w-6xl scroll-mt-8 px-6 py-16 md:py-24">
+        <div className="grid items-end gap-6 md:grid-cols-12">
+          <div className="md:col-span-8">
+            <p className="text-xs uppercase tracking-[0.2em] text-[var(--teal)]">
+              See it in action
+            </p>
+            <h2
+              className="mt-5 text-4xl leading-none sm:text-5xl md:text-6xl"
+              style={{ fontFamily: "var(--heading-font)" }}
+            >
+              A closer look at Momentum.
+            </h2>
+          </div>
+
+          <p className="text-sm leading-6 text-[var(--muted)] md:col-span-4">
+            Watch how the dashboard helps you organize your work, save ideas
+            and keep track of what needs attention.
+          </p>
         </div>
 
-        <div className="mt-16 flex justify-between items-center border-t border-[var(--ink)]/10 pt-10">
-          <p className="max-w-xl text-2xl md:text-3xl leading-tight tracking-tight" style={{ fontFamily: "var(--heading-font)" }}>
-            Progress does not always look dramatic. Sometimes it looks like knowing what to do next.
-          </p>
-          <div className="hidden md:grid h-12 w-12 place-items-center rounded-full bg-[var(--cream)] border border-[var(--ink)]/10">✓</div>
+        <div className="mt-10 overflow-hidden rounded-3xl border border-[var(--ink)]/10 bg-[var(--ink)] shadow-sm">
+          <video
+            className="aspect-video w-full bg-[var(--ink)] object-contain"
+            controls
+            preload="metadata"
+            playsInline
+            aria-label="Momentum dashboard demonstration"
+          >
+            <source src="/dashboard-demo.mp4" type="video/mp4" />
+            Your browser does not support video playback.
+          </video>
         </div>
-      </div>
+
+        <p className="mt-3 text-xs text-[var(--muted)]">
+          Momentum dashboard demonstration
+        </p>
+      </section>
+
+      <section className="border-y border-[var(--ink)]/10 bg-white">
+        <div className="mx-auto max-w-6xl px-6 py-16 md:py-20">
+          <p className="text-xs uppercase tracking-[0.2em] text-[var(--teal)]">
+            One workspace
+          </p>
+
+          <h2
+            className="mt-5 max-w-2xl text-4xl leading-none sm:text-5xl"
+            style={{ fontFamily: "var(--heading-font)" }}
+          >
+            Everything has a place. Your next step has a purpose.
+          </h2>
+
+          <div className="mt-10 grid gap-8 border-t border-[var(--ink)]/10 pt-8 sm:grid-cols-2 lg:grid-cols-4">
+            <div>
+              <p className="text-xs text-[var(--teal)]">01 / TASKS</p>
+              <h3 className="mt-3 text-lg">Know what's next</h3>
+              <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
+                Organize priorities, due dates and completed work.
+              </p>
+            </div>
+
+            <div>
+              <p className="text-xs text-[var(--teal)]">02 / NOTES</p>
+              <h3 className="mt-3 text-lg">Keep your ideas</h3>
+              <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
+                Save useful thoughts before they get lost.
+              </p>
+            </div>
+
+            <div>
+              <p className="text-xs text-[var(--teal)]">03 / REMINDERS</p>
+              <h3 className="mt-3 text-lg">Remember what matters</h3>
+              <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
+                Give important things a date and time.
+              </p>
+            </div>
+
+            <div>
+              <p className="text-xs text-[var(--teal)]">04 / FOCUS</p>
+              <h3 className="mt-3 text-lg">Make time to act</h3>
+              <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
+                Use a focus session to work on one thing at a time.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-6xl px-6 py-16 md:py-24">
+        <div className="relative overflow-hidden rounded-3xl bg-[var(--teal)] p-8 md:p-14">
+          <div className="relative z-10 max-w-2xl">
+            <p className="text-xs uppercase tracking-[0.2em] text-[var(--ink)]/70">
+              Your next step starts here
+            </p>
+
+            <h2
+              className="mt-5 text-4xl leading-none text-white sm:text-6xl"
+              style={{ fontFamily: "var(--heading-font)" }}
+            >
+              Make today a little clearer.
+            </h2>
+
+            <Link
+              href="/dashboard"
+              className="mt-8 inline-flex items-center gap-3 rounded-full bg-[var(--ink)] px-6 py-3.5 text-sm text-white transition-colors hover:bg-[var(--deep-blue)]"
+            >
+              Open your dashboard <ArrowRight size={16} />
+            </Link>
+          </div>
+
+          <div className="pointer-events-none absolute -right-16 -top-20 h-64 w-64 rounded-full border-[32px] border-[var(--mint)]/30" />
+        </div>
+
+        <footer className="mt-12 flex flex-col justify-between gap-4 border-t border-[var(--ink)]/10 pt-6 text-xs text-[var(--muted)] sm:flex-row">
+          <p>Momentum — make room for what matters.</p>
+          <div className="flex gap-5">
+            <Link href="/how-it-works">How it works</Link>
+            <Link href="/contact">Contact</Link>
+            <Link href="/dashboard">Dashboard</Link>
+          </div>
+        </footer>
+      </section>
     </div>
   );
 }
