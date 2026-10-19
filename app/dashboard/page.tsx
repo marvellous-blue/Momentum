@@ -536,7 +536,7 @@ export default function DashboardPage() {
               </p>
               <button
                 onClick={enableNotifications}
-                className="rounded-xl border border-[var(--ink)]/10 bg-white px-3 py-2 text-xs text-[var(--deep-blue)] hover:bg-[var(--mint)]/20"
+                className="rounded-xl rounded-2xl border border-[var(--ink)]/10 bg-white shadow-sm px-3 py-2 text-xs text-[var(--deep-blue)] hover:bg-[var(--mint)]/20"
               >
                 <Bell size={14} className="mr-2 inline" />
                 {notificationPermission === "granted" ? "Notifications on" : "Enable notifications"}
@@ -578,7 +578,7 @@ export default function DashboardPage() {
 
           <main className="px-5 py-8 sm:px-8 sm:py-10 lg:px-10 lg:py-12">
             {notice && (
-              <div className="mb-6 flex items-center justify-between border border-[var(--ink)]/10 bg-white px-4 py-3 text-sm">
+              <div className="mb-6 flex items-center justify-between rounded-2xl border border-[var(--ink)]/10 bg-white shadow-sm px-4 py-3 text-sm">
                 <span>{notice}</span>
                 <button
                   onClick={() => setNotice("")}
@@ -628,7 +628,7 @@ export default function DashboardPage() {
                           : "Tasks"
                     )
                   }
-                  className="inline-flex w-fit items-center gap-2 bg-[var(--deep-blue)] px-4 py-3 text-sm text-white transition-colors hover:bg-[var(--ink)]"
+                  className="inline-flex w-fit items-center gap-2 rounded-xl bg-[var(--deep-blue)] px-4 py-3 text-sm text-white transition-colors hover:bg-[var(--ink)]"
                 >
                   <Plus size={16} />
                   {section === "Notes"
@@ -643,7 +643,7 @@ export default function DashboardPage() {
             {section === "Overview" && (
               <div className="grid gap-6 xl:grid-cols-[minmax(0,1.4fr)_minmax(300px,0.8fr)]">
                 <div className="space-y-6">
-                  <section className="border border-[var(--ink)]/10 bg-white p-5 sm:p-7">
+                  <section className="rounded-2xl border border-[var(--ink)]/10 bg-white shadow-sm p-5 sm:p-7">
                     <div className="flex flex-wrap items-start justify-between gap-4">
                       <div>
                         <p className="text-xs uppercase tracking-[0.16em] text-[var(--muted)]">
@@ -683,7 +683,7 @@ export default function DashboardPage() {
                     </div>
                   </section>
 
-                  <section className="border border-[var(--ink)]/10 bg-white p-5 sm:p-7">
+                  <section className="rounded-2xl border border-[var(--ink)]/10 bg-white shadow-sm p-5 sm:p-7">
                     <div className="flex items-center justify-between gap-4">
                       <div>
                         <p className="text-xs uppercase tracking-[0.16em] text-[var(--teal)]">
@@ -849,7 +849,7 @@ export default function DashboardPage() {
                 </div>
 
                 <div className="space-y-6">
-                  <section className="border border-[var(--ink)]/10 bg-white p-5 sm:p-7">
+                  <section className="rounded-2xl border border-[var(--ink)]/10 bg-white shadow-sm p-5 sm:p-7">
                     <div className="flex items-center gap-3">
                       <span className="grid h-9 w-9 place-items-center bg-[var(--cream)] text-[var(--deep-blue)]">
                         <Sparkles size={17} />
@@ -882,7 +882,7 @@ export default function DashboardPage() {
                           setAssistantInput(event.target.value)
                         }
                         placeholder="Add task: read chapter one"
-                        className="min-w-0 flex-1 border border-[var(--ink)]/10 px-3 py-3 text-sm outline-none focus:border-[var(--teal)]"
+                        className="min-w-0 flex-1 rounded-xl border border-[var(--ink)]/10 px-3 py-3 text-sm outline-none focus:border-[var(--teal)]"
                       />
 
                       <button
@@ -905,7 +905,7 @@ export default function DashboardPage() {
                     </button>
                   </section>
 
-                  <section className="border border-[var(--ink)]/10 bg-white p-5 sm:p-7">
+                  <section className="rounded-2xl border border-[var(--ink)]/10 bg-white shadow-sm p-5 sm:p-7">
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-xs uppercase tracking-[0.16em] text-[var(--teal)]">
@@ -948,7 +948,7 @@ export default function DashboardPage() {
                     </button>
                   </section>
 
-                  <section className="border border-[var(--ink)]/10 bg-white p-5 sm:p-7">
+                  <section className="rounded-2xl border border-[var(--ink)]/10 bg-white shadow-sm p-5 sm:p-7">
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-xs uppercase tracking-[0.16em] text-[var(--teal)]">
@@ -990,7 +990,7 @@ export default function DashboardPage() {
             )}
 
             {section === "Tasks" && (
-              <div className="max-w-4xl border border-[var(--ink)]/10 bg-white p-5 sm:p-8">
+              <div className="max-w-4xl rounded-2xl border border-[var(--ink)]/10 bg-white shadow-sm p-5 sm:p-8">
                 <form
                   onSubmit={taskForm}
                   className="grid gap-3 border-b border-[var(--ink)]/10 pb-6 md:grid-cols-[minmax(0,1fr)_140px_160px_auto]"
@@ -999,7 +999,7 @@ export default function DashboardPage() {
                     value={taskTitle}
                     onChange={(event) => setTaskTitle(event.target.value)}
                     placeholder="What needs to get done?"
-                    className="min-w-0 border border-[var(--ink)]/10 px-3 py-3 text-sm outline-none focus:border-[var(--teal)]"
+                    className="min-w-0 rounded-xl border border-[var(--ink)]/10 px-3 py-3 text-sm outline-none focus:border-[var(--teal)]"
                   />
 
                   <select
@@ -1007,7 +1007,7 @@ export default function DashboardPage() {
                     onChange={(event) =>
                       setTaskPriority(event.target.value as Priority)
                     }
-                    className="border border-[var(--ink)]/10 bg-white px-3 py-3 text-sm"
+                    className="rounded-2xl border border-[var(--ink)]/10 bg-white shadow-sm px-3 py-3 text-sm"
                   >
                     <option value="high">Priority</option>
                     <option value="normal">Normal</option>
@@ -1019,10 +1019,10 @@ export default function DashboardPage() {
                     value={taskDueDate}
                     onChange={(event) => setTaskDueDate(event.target.value)}
                     aria-label="Task due date"
-                    className="border border-[var(--ink)]/10 px-3 py-3 text-sm"
+                    className="rounded-xl border border-[var(--ink)]/10 px-3 py-3 text-sm"
                   />
 
-                  <button className="inline-flex items-center justify-center gap-2 bg-[var(--deep-blue)] px-4 py-3 text-sm text-white">
+                  <button className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--deep-blue)] px-4 py-3 text-sm text-white">
                     <Plus size={16} /> Add
                   </button>
                 </form>
@@ -1112,7 +1112,7 @@ export default function DashboardPage() {
 
             {section === "Assistant" && (
               <div className="grid max-w-5xl gap-6 lg:grid-cols-[minmax(0,1fr)_280px]">
-                <section className="border border-[var(--ink)]/10 bg-white p-5 sm:p-8">
+                <section className="rounded-2xl border border-[var(--ink)]/10 bg-white shadow-sm p-5 sm:p-8">
                   <div className="flex items-start gap-4 border-b border-[var(--ink)]/10 pb-6">
                     <span className="grid h-11 w-11 place-items-center bg-[var(--deep-blue)] text-white">
                       <Command size={20} />
@@ -1152,7 +1152,7 @@ export default function DashboardPage() {
                               "All tasks have been removed from this device."
                             );
                           }}
-                          className="bg-[var(--deep-blue)] px-4 py-2 text-xs text-white"
+                          className="rounded-xl bg-[var(--deep-blue)] px-4 py-2 text-xs text-white"
                         >
                           Yes, delete tasks
                         </button>
@@ -1183,14 +1183,14 @@ export default function DashboardPage() {
                       className="min-w-0 flex-1 border border-[var(--ink)]/15 px-4 py-3 text-sm outline-none focus:border-[var(--teal)]"
                     />
 
-                    <button className="inline-flex items-center gap-2 bg-[var(--deep-blue)] px-4 py-3 text-sm text-white">
+                    <button className="inline-flex items-center gap-2 rounded-xl bg-[var(--deep-blue)] px-4 py-3 text-sm text-white">
                       <Send size={16} />
                       <span className="hidden sm:inline">Send</span>
                     </button>
                   </form>
                 </section>
 
-                <aside className="border border-[var(--ink)]/10 bg-white p-5 sm:p-6">
+                <aside className="rounded-2xl border border-[var(--ink)]/10 bg-white shadow-sm p-5 sm:p-6">
                   <p className="text-xs uppercase tracking-[0.16em] text-[var(--teal)]">
                     Try saying
                   </p>
@@ -1225,7 +1225,7 @@ export default function DashboardPage() {
               <div className="grid gap-6 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
                 <form
                   onSubmit={noteForm}
-                  className="h-fit border border-[var(--ink)]/10 bg-white p-5 sm:p-7"
+                  className="h-fit rounded-2xl border border-[var(--ink)]/10 bg-white shadow-sm p-5 sm:p-7"
                 >
                   <p className="text-xs uppercase tracking-[0.16em] text-[var(--teal)]">
                     New note
@@ -1246,7 +1246,7 @@ export default function DashboardPage() {
                     className="mt-4 w-full resize-y bg-[var(--cream)]/50 p-4 text-sm leading-6 outline-none focus:ring-1 focus:ring-[var(--teal)]"
                   />
 
-                  <button className="mt-4 inline-flex items-center gap-2 bg-[var(--deep-blue)] px-5 py-3 text-sm text-white">
+                  <button className="mt-4 inline-flex items-center gap-2 rounded-xl bg-[var(--deep-blue)] px-5 py-3 text-sm text-white">
                     <Plus size={16} /> Save note
                   </button>
                 </form>
@@ -1256,7 +1256,7 @@ export default function DashboardPage() {
                     notes.map((note) => (
                       <article
                         key={note.id}
-                        className="border border-[var(--ink)]/10 bg-white p-5"
+                        className="rounded-2xl border border-[var(--ink)]/10 bg-white shadow-sm p-5"
                       >
                         <div className="flex items-start justify-between gap-3">
                           <h2
@@ -1302,7 +1302,7 @@ export default function DashboardPage() {
               <div className="grid max-w-5xl gap-6 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
                 <form
                   onSubmit={reminderForm}
-                  className="h-fit border border-[var(--ink)]/10 bg-white p-5 sm:p-7"
+                  className="h-fit rounded-2xl border border-[var(--ink)]/10 bg-white shadow-sm p-5 sm:p-7"
                 >
                   <p className="text-xs uppercase tracking-[0.16em] text-[var(--teal)]">
                     Create a reminder
@@ -1316,7 +1316,7 @@ export default function DashboardPage() {
                     value={reminderTitle}
                     onChange={(event) => setReminderTitle(event.target.value)}
                     placeholder="Call Mum, take a break…"
-                    className="mt-2 w-full border border-[var(--ink)]/10 px-3 py-3 text-sm outline-none focus:border-[var(--teal)]"
+                    className="mt-2 w-full rounded-xl border border-[var(--ink)]/10 px-3 py-3 text-sm outline-none focus:border-[var(--teal)]"
                   />
 
                   <label className="mt-5 block text-xs text-[var(--muted)]">
@@ -1327,10 +1327,10 @@ export default function DashboardPage() {
                     type="datetime-local"
                     value={reminderAt}
                     onChange={(event) => setReminderAt(event.target.value)}
-                    className="mt-2 w-full border border-[var(--ink)]/10 px-3 py-3 text-sm outline-none focus:border-[var(--teal)]"
+                    className="mt-2 w-full rounded-xl border border-[var(--ink)]/10 px-3 py-3 text-sm outline-none focus:border-[var(--teal)]"
                   />
 
-                  <button className="mt-5 inline-flex items-center gap-2 bg-[var(--deep-blue)] px-5 py-3 text-sm text-white">
+                  <button className="mt-5 inline-flex items-center gap-2 rounded-xl bg-[var(--deep-blue)] px-5 py-3 text-sm text-white">
                     <Bell size={15} /> Save reminder
                   </button>
 
@@ -1341,7 +1341,7 @@ export default function DashboardPage() {
                   </p>
                 </form>
 
-                <section className="border border-[var(--ink)]/10 bg-white p-5 sm:p-7">
+                <section className="rounded-2xl border border-[var(--ink)]/10 bg-white shadow-sm p-5 sm:p-7">
                   <div className="flex items-center justify-between border-b border-[var(--ink)]/10 pb-4">
                     <h2
                       className="text-2xl text-[var(--deep-blue)]"
