@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import {
   ArrowRight,
@@ -388,12 +389,14 @@ export default function DashboardPage() {
       <div className="mx-auto flex min-h-screen max-w-[1600px]">
         <aside className="hidden w-64 shrink-0 border-r border-[var(--ink)]/10 bg-[var(--cream)] px-6 py-7 lg:flex lg:flex-col">
           <Link href="/" className="flex items-center gap-3">
-            <span
-              className="grid h-10 w-10 place-items-center bg-[var(--deep-blue)] text-lg text-white"
-              style={{ fontFamily: "var(--heading-font)" }}
-            >
-              M
-            </span>
+            <Image
+              src="/images/momentum-logo.png"
+              alt="Momentum"
+              width={180}
+              height={60}
+              className="h-auto w-36"
+              priority
+            />
             <span className="text-lg font-semibold tracking-tight">
               momentum
             </span>
@@ -455,13 +458,14 @@ export default function DashboardPage() {
         <div className="min-w-0 flex-1">
           <header className="flex items-center justify-between border-b border-[var(--ink)]/10 px-5 py-4 sm:px-8 lg:px-10">
             <Link href="/" className="flex items-center gap-2 lg:hidden">
-              <span
-                className="grid h-8 w-8 place-items-center bg-[var(--deep-blue)] text-white"
-                style={{ fontFamily: "var(--heading-font)" }}
-              >
-                M
-              </span>
-              <span className="text-sm font-semibold">momentum</span>
+              <Image
+                src="/images/momentum-logo.png"
+                alt="Momentum"
+                width={180}
+                height={60}
+                className="h-auto w-32"
+                priority
+              />
             </Link>
 
             <p className="hidden text-xs uppercase tracking-[0.18em] text-[var(--muted)] sm:block">
