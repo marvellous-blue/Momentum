@@ -7,6 +7,8 @@ import {
   Bell,
   Check,
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
   Circle,
   Clock3,
   FileText,
@@ -14,6 +16,7 @@ import {
   ListTodo,
   Menu,
   Plus,
+  RotateCcw,
   Search,
   Send,
   Sparkles,
@@ -60,17 +63,46 @@ const navigation: {
   { name: "Notes", icon: FileText },
 ];
 
+const tourSteps: {
+  section: Section;
+  title: string;
+  body: string;
+}[] = [
+  {
+    section: "Overview",
+    title: "Your overview, at a glance",
+    body: "Everything that needs attention lives here — tasks remaining, pending reminders, and saved notes. The suggested next step uses your priorities and deadlines to tell you where to start.",
+  },
+  {
+    section: "Tasks",
+    title: "Tasks with priorities & deadlines",
+    body: "Add work with high, normal, or low priority. Set a due date and Momentum will sort things so the most urgent task surfaces first.",
+  },
+  {
+    section: "Reminders",
+    title: "Reminders that stay in view",
+    body: "Give important things a date and time. The dashboard checks every few seconds and can send browser notifications when something is due.",
+  },
+  {
+    section: "Notes",
+    title: "Notes for ideas worth keeping",
+    body: "Save thoughts before they get lost. You can edit, update, or delete any note — everything is stored locally in your browser.",
+  },
+  {
+    section: "Assistant",
+    title: "The assistant, ready to help",
+    body: "Type commands like “Add task: Finish my assignment” or “What should I do next?” — the assistant organises your work without switching screens.",
+  },
+];
+
 function createId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
 function formatDate(value: string) {
   if (!value) return "No deadline";
-
   const date = new Date(value);
-
   if (Number.isNaN(date.getTime())) return "Invalid date";
-
   return date.toLocaleDateString(undefined, {
     day: "numeric",
     month: "short",
@@ -80,9 +112,7 @@ function formatDate(value: string) {
 
 function formatDateTime(value: string) {
   const date = new Date(value);
-
   if (Number.isNaN(date.getTime())) return "Invalid date";
-
   return date.toLocaleString(undefined, {
     day: "numeric",
     month: "short",
@@ -93,13 +123,10 @@ function formatDateTime(value: string) {
 
 function getReminderStatus(reminder: Reminder) {
   if (reminder.done) return "Completed";
-
   const time = new Date(reminder.at).getTime();
-
   if (Number.isNaN(time)) return "Invalid date";
   if (time > Date.now()) return "Upcoming";
   if (Date.now() - time < 60000) return "Due now";
-
   return "Overdue";
 }
 
@@ -139,28 +166,30 @@ export default function DashboardDemo() {
   const [notificationPermission, setNotificationPermission] =
     useState<NotificationPermission | "unsupported">("default");
 
+  // Tour state
+  const [tourOpen, setTourOpen] = useState(false);
+  const [tourStep, setTourStep] = useState(0);
+
+  // Post-tour overlay state (the "Rewatch the demo" screen)
+  const [replayOpen, setReplayOpen] = useState(false);
+
   const notifiedIds = useRef(new Set<string>());
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const tourLaunched = useRef(false);
 
   useEffect(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
-
       if (saved) {
         const data = JSON.parse(saved);
-
         setTasks(Array.isArray(data.tasks) ? data.tasks : []);
         setReminders(Array.isArray(data.reminders) ? data.reminders : []);
         setNotes(Array.isArray(data.notes) ? data.notes : []);
       }
-
       const savedNotifications = localStorage.getItem(NOTIFIED_KEY);
-
       if (savedNotifications) {
         const ids = JSON.parse(savedNotifications);
-
-        if (Array.isArray(ids)) {
-          notifiedIds.current = new Set(ids);
-        }
+        if (Array.isArray(ids)) notifiedIds.current = new Set(ids);
       }
     } catch {
       setNotice("Some saved data could not be loaded.");
@@ -177,7 +206,6 @@ export default function DashboardDemo() {
 
   useEffect(() => {
     if (!loaded) return;
-
     try {
       localStorage.setItem(
         STORAGE_KEY,
@@ -197,7 +225,6 @@ export default function DashboardDemo() {
 
       reminders.forEach((reminder) => {
         const time = new Date(reminder.at).getTime();
-
         if (
           !reminder.done &&
           !Number.isNaN(time) &&
@@ -206,7 +233,6 @@ export default function DashboardDemo() {
         ) {
           notifiedIds.current.add(reminder.id);
           changed = true;
-
           setNotice(`Reminder due: ${reminder.title}`);
 
           if (
@@ -239,15 +265,10 @@ export default function DashboardDemo() {
     };
 
     checkReminders();
-
     const interval = window.setInterval(checkReminders, 5000);
-
     const onVisibilityChange = () => {
-      if (document.visibilityState === "visible") {
-        checkReminders();
-      }
+      if (document.visibilityState === "visible") checkReminders();
     };
-
     document.addEventListener("visibilitychange", onVisibilityChange);
 
     return () => {
@@ -255,6 +276,50 @@ export default function DashboardDemo() {
       document.removeEventListener("visibilitychange", onVisibilityChange);
     };
   }, [loaded, reminders]);
+
+  // Tour keyboard nav + scroll lock
+  useEffect(() => {
+    if (!tourOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") finishTour();
+      if (e.key === "ArrowRight") nextStep();
+      if (e.key === "ArrowLeft") prevStep();
+    };
+    window.addEventListener("keydown", onKey);
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = "";
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tourOpen]);
+
+  // ── Auto-start the tour when the user scrolls the demo into view
+  // (triggered by the "Watch the demo" button on the home page)
+  useEffect(() => {
+    if (!loaded) return;
+    if (tourLaunched.current) return;
+    if (!containerRef.current) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting && !tourLaunched.current) {
+            tourLaunched.current = true;
+            // small delay so the scroll lands first
+            window.setTimeout(() => {
+              openTour();
+            }, 500);
+          }
+        });
+      },
+      { threshold: 0.35 }
+    );
+
+    observer.observe(containerRef.current);
+    return () => observer.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loaded]);
 
   const completedTasks = tasks.filter((task) => task.done).length;
   const remainingTasks = tasks.filter((task) => !task.done);
@@ -265,33 +330,24 @@ export default function DashboardDemo() {
       normal: 1,
       low: 2,
     };
-
     return [...remainingTasks].sort((a, b) => {
       const aDue = a.dueDate
         ? new Date(`${a.dueDate}T23:59:59`).getTime()
         : Infinity;
-
       const bDue = b.dueDate
         ? new Date(`${b.dueDate}T23:59:59`).getTime()
         : Infinity;
-
       const aOverdue = aDue < Date.now();
       const bOverdue = bDue < Date.now();
-
       if (aOverdue !== bOverdue) return aOverdue ? -1 : 1;
-
       if (priorityOrder[a.priority] !== priorityOrder[b.priority]) {
         return priorityOrder[a.priority] - priorityOrder[b.priority];
       }
-
       return aDue - bDue;
     })[0];
   }, [remainingTasks]);
 
-  const pendingReminders = reminders.filter(
-    (reminder) => !reminder.done
-  );
-
+  const pendingReminders = reminders.filter((reminder) => !reminder.done);
   const filteredTasks = tasks.filter((task) =>
     task.title.toLowerCase().includes(taskSearch.toLowerCase())
   );
@@ -309,13 +365,11 @@ export default function DashboardDemo() {
     setMenuOpen(false);
   }
 
+  // ── CRUD functions (unchanged) ──
   function addTask(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-
     const title = taskTitle.trim();
-
     if (!title) return;
-
     setTasks((current) => [
       {
         id: createId(),
@@ -326,7 +380,6 @@ export default function DashboardDemo() {
       },
       ...current,
     ]);
-
     setTaskTitle("");
     setTaskPriority("normal");
     setTaskDueDate("");
@@ -348,34 +401,27 @@ export default function DashboardDemo() {
 
   function addReminder(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-
     const title = reminderTitle.trim();
     const time = new Date(reminderAt).getTime();
-
     if (!title || !reminderAt || Number.isNaN(time)) {
       setNotice("Enter a reminder and a valid date and time.");
       return;
     }
-
     if (time <= Date.now()) {
       setNotice("Choose a future time for the reminder.");
       return;
     }
-
     const reminder: Reminder = {
       id: createId(),
       title,
       at: new Date(time).toISOString(),
       done: false,
     };
-
     setReminders((current) =>
       [...current, reminder].sort(
-        (a, b) =>
-          new Date(a.at).getTime() - new Date(b.at).getTime()
+        (a, b) => new Date(a.at).getTime() - new Date(b.at).getTime()
       )
     );
-
     setReminderTitle("");
     setReminderAt("");
     setNotice("Reminder saved.");
@@ -383,14 +429,9 @@ export default function DashboardDemo() {
 
   function toggleReminder(id: string) {
     const reminder = reminders.find((item) => item.id === id);
-
     if (reminder) {
-      if (reminder.done) {
-        notifiedIds.current.delete(id);
-      } else {
-        notifiedIds.current.add(id);
-      }
-
+      if (reminder.done) notifiedIds.current.delete(id);
+      else notifiedIds.current.add(id);
       try {
         localStorage.setItem(
           NOTIFIED_KEY,
@@ -400,7 +441,6 @@ export default function DashboardDemo() {
         setNotice("Could not update reminder status.");
       }
     }
-
     setReminders((current) =>
       current.map((item) =>
         item.id === id ? { ...item, done: !item.done } : item
@@ -412,9 +452,7 @@ export default function DashboardDemo() {
     setReminders((current) =>
       current.filter((reminder) => reminder.id !== id)
     );
-
     notifiedIds.current.delete(id);
-
     try {
       localStorage.setItem(
         NOTIFIED_KEY,
@@ -423,7 +461,6 @@ export default function DashboardDemo() {
     } catch {
       setNotice("Could not update saved reminder information.");
     }
-
     setNotice("Reminder deleted.");
   }
 
@@ -433,15 +470,11 @@ export default function DashboardDemo() {
       setNotice("This browser does not support browser notifications.");
       return;
     }
-
     try {
       const permission = await Notification.requestPermission();
-
       setNotificationPermission(permission);
-
       if (permission === "granted") {
         setNotice("Notifications enabled.");
-
         new Notification("Momentum", {
           body: "Your browser notifications are working.",
           icon: "/images/momentum-logo.png",
@@ -458,29 +491,20 @@ export default function DashboardDemo() {
 
   function saveNote(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-
     const title = noteTitle.trim();
     const body = noteBody.trim();
-
     if (!title || !body) {
       setNotice("Enter a note title and some text.");
       return;
     }
-
     if (editingNoteId) {
       setNotes((current) =>
         current.map((note) =>
           note.id === editingNoteId
-            ? {
-                ...note,
-                title,
-                body,
-                updatedAt: new Date().toISOString(),
-              }
+            ? { ...note, title, body, updatedAt: new Date().toISOString() }
             : note
         )
       );
-
       setNotice("Note updated.");
     } else {
       setNotes((current) => [
@@ -492,10 +516,8 @@ export default function DashboardDemo() {
         },
         ...current,
       ]);
-
       setNotice("Note saved.");
     }
-
     setEditingNoteId(null);
     setNoteTitle("");
     setNoteBody("");
@@ -515,15 +537,12 @@ export default function DashboardDemo() {
 
   function handleAssistant(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-
     const input = assistantInput.trim();
     const lower = input.toLowerCase();
-
     if (!input) return;
 
     if (lower.startsWith("add task:")) {
       const title = input.slice("add task:".length).trim();
-
       if (!title) {
         setAssistantReply("Write your task after “Add task:”.");
       } else {
@@ -537,7 +556,6 @@ export default function DashboardDemo() {
           },
           ...current,
         ]);
-
         setAssistantReply(`Added “${title}” to your tasks.`);
       }
     } else if (
@@ -545,7 +563,6 @@ export default function DashboardDemo() {
       lower.includes("list my tasks")
     ) {
       const unfinished = tasks.filter((task) => !task.done);
-
       setAssistantReply(
         unfinished.length
           ? `You have ${unfinished.length} unfinished tasks: ${unfinished
@@ -571,7 +588,6 @@ export default function DashboardDemo() {
       );
     } else if (lower.startsWith("save this idea:")) {
       const idea = input.slice("save this idea:".length).trim();
-
       if (!idea) {
         setAssistantReply("Write your idea after “Save this idea:”.");
       } else {
@@ -584,7 +600,6 @@ export default function DashboardDemo() {
           },
           ...current,
         ]);
-
         setAssistantReply("Your idea has been saved in Notes.");
       }
     } else if (lower.includes("remind me to")) {
@@ -598,7 +613,6 @@ export default function DashboardDemo() {
       const confirmed = window.confirm(
         "Delete all tasks? This cannot be undone."
       );
-
       if (confirmed) {
         setTasks([]);
         setAssistantReply("All tasks have been deleted.");
@@ -610,12 +624,65 @@ export default function DashboardDemo() {
         "Try “Add task: Finish my assignment”, “Show my tasks”, “What should I do next?”, or “Save this idea: a budgeting app”."
       );
     }
-
     setAssistantInput("");
   }
 
+  // ─── Tour flow ───
+  function openTour() {
+    setReplayOpen(false);
+    setTourStep(0);
+    setTourOpen(true);
+    changeSection(tourSteps[0].section);
+  }
+
+  function nextStep() {
+    setTourStep((s) => {
+      const next = Math.min(s + 1, tourSteps.length - 1);
+      changeSection(tourSteps[next].section);
+      return next;
+    });
+  }
+
+  function prevStep() {
+    setTourStep((s) => {
+      const prev = Math.max(s - 1, 0);
+      changeSection(tourSteps[prev].section);
+      return prev;
+    });
+  }
+
+  function goToStep(i: number) {
+    setTourStep(i);
+    changeSection(tourSteps[i].section);
+  }
+
+  // When the tour ends → show the "Rewatch the demo" overlay
+  function finishTour() {
+    setTourOpen(false);
+    setTourStep(0);
+    changeSection("Overview");
+    setReplayOpen(true);
+  }
+
+  // Close the "Rewatch" overlay → back to clean dashboard
+  function dismissReplay() {
+    setReplayOpen(false);
+  }
+
+  function rewatchDemo() {
+    setReplayOpen(false);
+    openTour();
+  }
+
+  const isFirstStep = tourStep === 0;
+  const isLastStep = tourStep === tourSteps.length - 1;
+  const currentTourStep = tourSteps[tourStep];
+
   return (
-    <div className="min-h-screen bg-[var(--cream)] text-[var(--ink)]">
+    <div
+      ref={containerRef}
+      className="relative min-h-screen bg-[var(--cream)] text-[var(--ink)]"
+    >
       <div className="flex min-h-screen">
         <aside className="hidden w-[250px] shrink-0 flex-col border-r border-[var(--deep-blue)]/10 px-5 py-7 lg:flex">
           <a href="/" className="mb-10 flex items-center gap-3">
@@ -642,11 +709,14 @@ export default function DashboardDemo() {
                   section === name
                     ? "bg-[var(--deep-blue)] text-white"
                     : "text-[var(--muted)] hover:bg-[var(--deep-blue)]/5 hover:text-[var(--ink)]"
+                } ${
+                  tourOpen && currentTourStep.section === name
+                    ? "ring-2 ring-[var(--teal)] ring-offset-2 ring-offset-[var(--cream)]"
+                    : ""
                 }`}
               >
                 <Icon size={18} strokeWidth={1.8} />
                 {name}
-
                 {name === "Reminders" && pendingReminders.length > 0 && (
                   <span className="ml-auto text-xs">
                     {pendingReminders.length}
@@ -692,6 +762,14 @@ export default function DashboardDemo() {
 
               <div className="flex items-center gap-2">
                 <button
+                  onClick={openTour}
+                  className="flex items-center gap-2 rounded-xl border border-[var(--deep-blue)]/15 px-3 py-2 text-sm transition hover:bg-[var(--deep-blue)]/5"
+                >
+                  <Sparkles size={16} className="text-[var(--teal)]" />
+                  <span className="hidden sm:inline">Tour</span>
+                </button>
+
+                <button
                   onClick={enableNotifications}
                   className="flex items-center gap-2 rounded-xl border border-[var(--deep-blue)]/15 px-3 py-2 text-sm transition hover:bg-[var(--deep-blue)]/5"
                 >
@@ -718,7 +796,6 @@ export default function DashboardDemo() {
                       <p className="px-3 py-2 text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">
                         Navigate
                       </p>
-
                       {navigation.map(({ name, icon: Icon }) => (
                         <button
                           key={name}
@@ -733,7 +810,6 @@ export default function DashboardDemo() {
                           {name}
                         </button>
                       ))}
-
                       <a
                         href="/"
                         className="mt-1 flex items-center gap-3 rounded-xl px-3 py-3 text-sm text-[var(--teal)] hover:bg-[var(--deep-blue)]/5"
@@ -916,8 +992,7 @@ export default function DashboardDemo() {
                     [...pendingReminders]
                       .sort(
                         (a, b) =>
-                          new Date(a.at).getTime() -
-                          new Date(b.at).getTime()
+                          new Date(a.at).getTime() - new Date(b.at).getTime()
                       )
                       .slice(0, 4)
                       .map((reminder) => (
@@ -952,7 +1027,6 @@ export default function DashboardDemo() {
                     required
                     className="min-w-0 rounded-xl border border-[var(--deep-blue)]/15 px-3 py-3 text-sm outline-none focus:border-[var(--teal)] sm:col-span-2"
                   />
-
                   <select
                     value={taskPriority}
                     onChange={(event) =>
@@ -964,14 +1038,12 @@ export default function DashboardDemo() {
                     <option value="normal">Normal priority</option>
                     <option value="low">Low priority</option>
                   </select>
-
                   <input
                     type="date"
                     value={taskDueDate}
                     onChange={(event) => setTaskDueDate(event.target.value)}
                     className="rounded-xl border border-[var(--deep-blue)]/15 bg-white px-3 py-3 text-sm outline-none focus:border-[var(--teal)]"
                   />
-
                   <button
                     type="submit"
                     className="flex items-center justify-center gap-2 rounded-xl bg-[var(--deep-blue)] px-4 py-3 text-sm text-white hover:opacity-90 sm:col-span-2"
@@ -1024,13 +1096,12 @@ export default function DashboardDemo() {
                         {notificationPermission === "granted"
                           ? "Permission granted. Test a notification or add a reminder below."
                           : notificationPermission === "denied"
-                            ? "Permission blocked. Change the notification permission in your browser's site settings."
-                            : notificationPermission === "unsupported"
-                              ? "This browser does not support the Notification API."
-                              : "Enable notifications and allow the browser permission request."}
+                          ? "Permission blocked. Change the notification permission in your browser's site settings."
+                          : notificationPermission === "unsupported"
+                          ? "This browser does not support the Notification API."
+                          : "Enable notifications and allow the browser permission request."}
                       </p>
                     </div>
-
                     <button
                       onClick={enableNotifications}
                       className="rounded-xl border border-[var(--deep-blue)]/15 px-4 py-2.5 text-sm hover:bg-[var(--deep-blue)]/5"
@@ -1048,14 +1119,11 @@ export default function DashboardDemo() {
                 >
                   <input
                     value={reminderTitle}
-                    onChange={(event) =>
-                      setReminderTitle(event.target.value)
-                    }
+                    onChange={(event) => setReminderTitle(event.target.value)}
                     placeholder="What should you be reminded about?"
                     required
                     className="rounded-xl border border-[var(--deep-blue)]/15 px-3 py-3 text-sm outline-none focus:border-[var(--teal)] sm:col-span-2"
                   />
-
                   <input
                     type="datetime-local"
                     value={reminderAt}
@@ -1063,7 +1131,6 @@ export default function DashboardDemo() {
                     required
                     className="min-w-0 rounded-xl border border-[var(--deep-blue)]/15 bg-white px-3 py-3 text-sm outline-none focus:border-[var(--teal)]"
                   />
-
                   <button
                     type="submit"
                     className="flex items-center justify-center gap-2 rounded-xl bg-[var(--deep-blue)] px-4 py-3 text-sm text-white"
@@ -1080,10 +1147,8 @@ export default function DashboardDemo() {
                     [...reminders]
                       .sort((a, b) => {
                         if (a.done !== b.done) return a.done ? 1 : -1;
-
                         return (
-                          new Date(a.at).getTime() -
-                          new Date(b.at).getTime()
+                          new Date(a.at).getTime() - new Date(b.at).getTime()
                         );
                       })
                       .map((reminder) => (
@@ -1114,15 +1179,10 @@ export default function DashboardDemo() {
                       What can I help with?
                     </h3>
                   </div>
-
                   <p className="mt-4 text-sm leading-7 text-white/80">
                     {assistantReply}
                   </p>
-
-                  <form
-                    onSubmit={handleAssistant}
-                    className="mt-6 flex gap-2"
-                  >
+                  <form onSubmit={handleAssistant} className="mt-6 flex gap-2">
                     <input
                       value={assistantInput}
                       onChange={(event) =>
@@ -1182,7 +1242,6 @@ export default function DashboardDemo() {
                     required
                     className="w-full rounded-xl border border-[var(--deep-blue)]/15 px-3 py-3 text-sm outline-none focus:border-[var(--teal)]"
                   />
-
                   <textarea
                     value={noteBody}
                     onChange={(event) => setNoteBody(event.target.value)}
@@ -1191,7 +1250,6 @@ export default function DashboardDemo() {
                     rows={5}
                     className="w-full resize-y rounded-xl border border-[var(--deep-blue)]/15 px-3 py-3 text-sm leading-6 outline-none focus:border-[var(--teal)]"
                   />
-
                   <div className="flex flex-wrap gap-2">
                     <button
                       type="submit"
@@ -1199,7 +1257,6 @@ export default function DashboardDemo() {
                     >
                       {editingNoteId ? "Update note" : "Save note"}
                     </button>
-
                     {editingNoteId && (
                       <button
                         type="button"
@@ -1237,11 +1294,9 @@ export default function DashboardDemo() {
                             <Trash2 size={16} />
                           </button>
                         </div>
-
                         <p className="mt-3 whitespace-pre-wrap break-words text-sm leading-6 text-[var(--muted)]">
                           {note.body}
                         </p>
-
                         <div className="mt-5 flex items-center justify-between gap-3 border-t border-[var(--deep-blue)]/10 pt-3">
                           <span className="text-xs text-[var(--muted)]">
                             Updated {formatDate(note.updatedAt)}
@@ -1262,9 +1317,153 @@ export default function DashboardDemo() {
           </section>
         </div>
       </div>
+
+      {/* ─────────── Tour overlay ─────────── */}
+      {tourOpen && currentTourStep && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm sm:p-6"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Dashboard guided tour"
+          onClick={finishTour}
+        >
+          <div
+            className="relative w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl sm:p-8"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={finishTour}
+              aria-label="Close tour"
+              className="absolute right-3 top-3 rounded-lg p-1.5 text-[var(--muted)] transition hover:bg-[var(--ink)]/5 hover:text-[var(--ink)]"
+            >
+              <X size={18} />
+            </button>
+
+            <div className="flex items-center gap-3">
+              <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-[var(--teal)] text-sm font-semibold text-white">
+                {tourStep + 1}
+              </span>
+              <div className="flex-1">
+                <p className="text-xs uppercase tracking-[0.16em] text-[var(--muted)]">
+                  Step {tourStep + 1} of {tourSteps.length}
+                </p>
+                <div className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-[var(--ink)]/10">
+                  <div
+                    className="h-full rounded-full bg-[var(--teal)] transition-all duration-300"
+                    style={{
+                      width: `${((tourStep + 1) / tourSteps.length) * 100}%`,
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <h3
+              className="mt-5 text-2xl leading-tight"
+              style={{ fontFamily: "var(--heading-font)" }}
+            >
+              {currentTourStep.title}
+            </h3>
+            <p className="mt-3 text-sm leading-6 text-[var(--muted)]">
+              {currentTourStep.body}
+            </p>
+
+            <div className="mt-6 flex items-center justify-between gap-3">
+              <button
+                onClick={prevStep}
+                disabled={isFirstStep}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-[var(--ink)]/15 px-3.5 py-2.5 text-sm transition hover:bg-[var(--ink)]/5 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <ChevronLeft size={16} />
+                Back
+              </button>
+
+              <div className="flex items-center gap-1.5">
+                {tourSteps.map((s, i) => (
+                  <button
+                    key={i}
+                    onClick={() => goToStep(i)}
+                    aria-label={`Go to step ${i + 1}`}
+                    className={`h-1.5 rounded-full transition-all ${
+                      i === tourStep
+                        ? "w-6 bg-[var(--teal)]"
+                        : "w-1.5 bg-[var(--ink)]/20 hover:bg-[var(--ink)]/40"
+                    }`}
+                  />
+                ))}
+              </div>
+
+              {isLastStep ? (
+                <button
+                  onClick={finishTour}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-[var(--deep-blue)] px-3.5 py-2.5 text-sm text-white transition hover:bg-[var(--ink)]"
+                >
+                  Done
+                  <Check size={16} />
+                </button>
+              ) : (
+                <button
+                  onClick={nextStep}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-[var(--deep-blue)] px-3.5 py-2.5 text-sm text-white transition hover:bg-[var(--ink)]"
+                >
+                  Next
+                  <ChevronRight size={16} />
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─────────── Post-tour "Rewatch the demo" overlay ─────────── */}
+      {replayOpen && !tourOpen && (
+        <div
+          className="fixed inset-0 z-[55] flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm sm:p-6"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Tour finished"
+        >
+          <div className="w-full max-w-md rounded-2xl bg-white p-7 text-center shadow-2xl sm:p-9">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[var(--teal)]/10">
+              <CheckCircle2 size={28} className="text-[var(--teal)]" />
+            </div>
+
+            <h3
+              className="mt-5 text-2xl leading-tight"
+              style={{ fontFamily: "var(--heading-font)" }}
+            >
+              That's the whole tour.
+            </h3>
+
+            <p className="mt-3 text-sm leading-6 text-[var(--muted)]">
+              You've seen the main parts of Momentum. You can keep exploring
+              the demo on your own — or rewatch the tour from the beginning.
+            </p>
+
+            <div className="mt-7 flex flex-col gap-2">
+              <button
+                onClick={rewatchDemo}
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--deep-blue)] px-4 py-3 text-sm text-white transition hover:bg-[var(--ink)]"
+              >
+                <RotateCcw size={16} />
+                Rewatch the demo
+              </button>
+
+              <button
+                onClick={dismissReplay}
+                className="rounded-xl border border-[var(--deep-blue)]/15 px-4 py-3 text-sm transition hover:bg-[var(--deep-blue)]/5"
+              >
+                Explore on my own
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+
+// ───────────── Helper components (unchanged) ─────────────
 
 function PageIntro({
   eyebrow,
@@ -1355,7 +1554,6 @@ function TaskRow({
   const deadline = task.dueDate
     ? new Date(`${task.dueDate}T23:59:59`).getTime()
     : Infinity;
-
   const overdue = !task.done && deadline < Date.now();
 
   return (
@@ -1379,7 +1577,6 @@ function TaskRow({
 
         <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-[var(--muted)]">
           <span>{getPriorityLabel(task.priority)}</span>
-
           {task.dueDate && (
             <>
               <span>·</span>
@@ -1423,11 +1620,7 @@ function ReminderRow({
         }
         className="mt-0.5 shrink-0 text-[var(--teal)]"
       >
-        {reminder.done ? (
-          <CheckCircle2 size={20} />
-        ) : (
-          <Clock3 size={20} />
-        )}
+        {reminder.done ? <CheckCircle2 size={20} /> : <Clock3 size={20} />}
       </button>
 
       <div className="min-w-0 flex-1">
@@ -1448,8 +1641,8 @@ function ReminderRow({
             status === "Overdue" || status === "Due now"
               ? "bg-red-50 text-red-700"
               : status === "Completed"
-                ? "bg-[var(--teal)]/10 text-[var(--teal)]"
-                : "bg-[var(--deep-blue)]/5 text-[var(--muted)]"
+              ? "bg-[var(--teal)]/10 text-[var(--teal)]"
+              : "bg-[var(--deep-blue)]/5 text-[var(--muted)]"
           }`}
         >
           {status}

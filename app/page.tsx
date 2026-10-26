@@ -136,7 +136,7 @@ export default function Home() {
           </p>
         </div>
 
-        {/* Live interactive demo in place of the video */}
+        
         <div className="mt-10 overflow-hidden rounded-3xl border border-[var(--ink)]/10 shadow-sm">
           <div className="flex items-center gap-2 border-b border-[var(--ink)]/10 bg-white px-4 py-3">
             <span className="h-3 w-3 rounded-full bg-red-400/70" />
@@ -145,7 +145,7 @@ export default function Home() {
             <span className="ml-3 text-xs text-[var(--muted)]">momentum.app / dashboard</span>
           </div>
 
-          {/* Constrain height so the demo scrolls internally instead of stretching the page */}
+        
           <div className="max-h-[80vh] overflow-y-auto bg-[var(--cream)]">
             <DashboardDemo />
           </div>
