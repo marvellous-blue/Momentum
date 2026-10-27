@@ -137,7 +137,19 @@ export default function Home() {
         </div>
 
         
-       
+        <div className="mt-10 overflow-hidden rounded-3xl border border-[var(--ink)]/10 bg-[var(--ink)] shadow-sm">
+          <video
+            className="mx-auto block h-auto max-h-[80vh] w-auto max-w-full"
+            controls
+            playsInline
+            disablePictureInPicture
+            preload="metadata"
+            aria-label="Momentum dashboard demonstration"
+          >
+            <source src="/dashboard-demo.mp4" type="video/mp4" />
+            Your browser does not support video playback.
+          </video>
+        </div>
 
         <p className="mt-3 text-xs text-[var(--muted)]">
           Momentum dashboard demonstration

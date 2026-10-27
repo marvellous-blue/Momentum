@@ -154,14 +154,13 @@ async function showNotification(
       await registration.showNotification(title, options);
       return;
     } catch {
-      // fall through to the desktop fallback below
+      
     }
   }
 
   try {
     new Notification(title, options);
   } catch {
-    // silently ignore — notice will still appear in the UI
   }
 }
 
@@ -204,8 +203,8 @@ export default function DashboardPage() {
   useEffect(() => {
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register("/sw.js").catch(() => {
-        // SW registration failed — mobile notifications will fall back
-        // gracefully. No need to surface this to the user.
+        // if  SW registration failed — mobile notifications will fall back
+        // gracefully there will be no need to surface this to the user.
       });
     }
   }, []);
@@ -545,7 +544,7 @@ export default function DashboardPage() {
           body: "Your browser notifications are working.",
           icon: "/images/momentum-logo.png",
         }).catch(() => {
-          // notice still shows if notification fails
+          
         });
       } else {
         setNotice(
@@ -759,9 +758,9 @@ export default function DashboardPage() {
             <Image
               src="/images/momentum-logo.png"
               alt="Momentum"
-              width={180}
-              height={60}
-              className="h-auto w-32 sm:w-36"
+              width={200}
+              height={90}
+              className="h-auto w-32 sm:w-48"
               priority
             />
           </a>
@@ -1412,7 +1411,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* ─── Tour overlay ─── */}
+      {/* tour guide */}
       {tourOpen && currentTourStep && (
         <div
           className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm sm:p-6"
