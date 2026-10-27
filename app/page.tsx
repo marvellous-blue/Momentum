@@ -1,7 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, ArrowUpRight, Play } from "lucide-react";
-import DashboardDemo from "../components/DashboardDemo"
+
 
 export default function Home() {
   return (
@@ -131,28 +131,28 @@ export default function Home() {
           </div>
 
           <p className="text-sm leading-6 text-[var(--muted)] md:col-span-4">
-            Try the dashboard right here — add a task, set a reminder, save a
-            note. Everything is saved locally in your browser.
+            Watch how the dashboard helps you organize your work, save ideas
+            and keep track of what needs attention.
           </p>
         </div>
 
         
-        <div className="mt-10 overflow-hidden rounded-3xl border border-[var(--ink)]/10 shadow-sm">
-          <div className="flex items-center gap-2 border-b border-[var(--ink)]/10 bg-white px-4 py-3">
-            <span className="h-3 w-3 rounded-full bg-red-400/70" />
-            <span className="h-3 w-3 rounded-full bg-yellow-400/70" />
-            <span className="h-3 w-3 rounded-full bg-green-400/70" />
-            <span className="ml-3 text-xs text-[var(--muted)]">momentum.app / dashboard</span>
-          </div>
-
-        
-          <div className="max-h-[80vh] overflow-y-auto bg-[var(--cream)]">
-            <DashboardDemo />
-          </div>
+        <div className="mt-10 overflow-hidden rounded-3xl border border-[var(--ink)]/10 bg-[var(--ink)] shadow-sm">
+          <video
+            className="mx-auto block h-auto max-h-[80vh] w-auto max-w-full"
+            controls
+            playsInline
+            disablePictureInPicture
+            preload="metadata"
+            aria-label="Momentum dashboard demonstration"
+          >
+            <source src="/dashboard-demo.mp4" type="video/mp4" />
+            Your browser does not support video playback.
+          </video>
         </div>
 
         <p className="mt-3 text-xs text-[var(--muted)]">
-          Live interactive demo — nothing leaves your device.
+          Momentum dashboard demonstration
         </p>
       </section>
 
